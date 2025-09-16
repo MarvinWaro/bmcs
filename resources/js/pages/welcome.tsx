@@ -1,8 +1,8 @@
-import { dashboard, login, register } from '@/routes';
+import { dashboard } from '@/routes';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage, router } from '@inertiajs/react';
-import { useState } from 'react';
-import { CalendarIcon, LoaderCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CalendarIcon, LoaderCircle, Sun, Moon, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAppearance } from '@/hooks/use-appearance';
+import { toast, Toaster } from 'sonner';
 import {
   Popover,
   PopoverContent,
@@ -36,8 +39,13 @@ function isValidDate(date: Date | undefined) {
     return !isNaN(date.getTime());
 }
 
+interface PageProps extends SharedData {
+    errors: Record<string, string>;
+}
+
 export default function Welcome() {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, errors } = usePage<PageProps>().props;
+    const { appearance, updateAppearance } = useAppearance();
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
@@ -49,6 +57,65 @@ export default function Welcome() {
         satisfactionRating: '',
         reason: ''
     });
+
+    // Function to cycle through themes
+    const toggleTheme = () => {
+        switch (appearance) {
+            case 'light':
+                updateAppearance('dark');
+                break;
+            case 'dark':
+                updateAppearance('system');
+                break;
+            case 'system':
+                updateAppearance('light');
+                break;
+            default:
+                updateAppearance('dark');
+        }
+    };
+
+    // Get current icon and tooltip text based on appearance
+    const getThemeIcon = () => {
+        switch (appearance) {
+            case 'light':
+                return { icon: Sun, tooltip: 'Switch to Dark Mode' };
+            case 'dark':
+                return { icon: Moon, tooltip: 'Switch to System Mode' };
+            case 'system':
+                return { icon: Monitor, tooltip: 'Switch to Light Mode' };
+            default:
+                return { icon: Sun, tooltip: 'Toggle theme' };
+        }
+    };
+
+    const { icon: ThemeIcon, tooltip } = getThemeIcon();
+
+    // Show validation errors as toast notifications
+    useEffect(() => {
+        if (Object.keys(errors).length > 0) {
+            console.log('Showing toast errors:', errors); // Debug log
+            Object.entries(errors).forEach(([field, message]) => {
+                if (field === 'general') {
+                    toast.error(message);
+                } else {
+                    // Map Laravel field names to user-friendly field names
+                    const fieldLabels: Record<string, string> = {
+                        'transaction_date': 'Transaction Date',
+                        'client_name': 'Client Name',
+                        'email': 'Email Address',
+                        'school_hei': 'School/HEI',
+                        'transaction_type': 'Transaction Type',
+                        'satisfaction_rating': 'Satisfaction Rating',
+                        'reason': 'Feedback'
+                    };
+
+                    const fieldLabel = fieldLabels[field] || field;
+                    toast.error(`${fieldLabel}: ${message}`);
+                }
+            });
+        }
+    }, [errors]);
 
     // Date picker states
     const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -95,7 +162,7 @@ export default function Welcome() {
         const submitData = {
             transaction_date: formData.transactionDate,
             client_name: formData.clientName,
-            email: formData.email || null,
+            email: formData.email,
             school_hei: formData.schoolHEI,
             transaction_type: formData.transactionType,
             satisfaction_rating: formData.satisfactionRating,
@@ -110,7 +177,7 @@ export default function Welcome() {
             onError: (errors) => {
                 console.error('Validation errors:', errors);
                 setIsSubmitting(false);
-                // You could show error messages here
+                // Stay on current step to show errors
             }
         });
     };
@@ -167,7 +234,7 @@ export default function Welcome() {
     };
 
     const canProceedToRating = () => {
-        return formData.transactionDate && formData.clientName && formData.schoolHEI && formData.transactionType;
+        return formData.transactionDate && formData.clientName && formData.email && formData.schoolHEI && formData.transactionType;
     };
 
     const progressPercentage = (currentStep / 4) * 100;
@@ -179,7 +246,7 @@ export default function Welcome() {
                 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
             </Head>
             <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a] dark:text-[#EDEDEC]">
-                <header className="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl">
+                <header className="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl bg-[#FDFDFC]/80 dark:bg-[#0a0a0a]/80 backdrop-blur-sm shadow-sm border-b border-[#19140035]/20 dark:border-[#3E3E3A]/30 sticky top-0 z-50 py-4 px-6 rounded-lg">
                     <nav className="flex items-center justify-between gap-4">
                         {/* Logos on the left */}
                         <div className="flex items-center gap-3">
@@ -195,30 +262,36 @@ export default function Welcome() {
                             />
                         </div>
 
-                        {/* Auth links on the right */}
+                        {/* Right side - Theme Toggle + Auth links */}
                         <div className="flex items-center gap-4">
-                            {auth.user ? (
+                            {/* Theme Toggle */}
+                            <TooltipProvider delayDuration={0}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-9 w-9 text-[#1b1b18] hover:bg-[#19140035] transition-colors dark:text-[#EDEDEC] dark:hover:bg-[#3E3E3A]"
+                                            onClick={toggleTheme}
+                                        >
+                                            <ThemeIcon className="h-4 w-4" />
+                                            <span className="sr-only">Toggle theme</span>
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>{tooltip}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
+                            {/* Auth Links */}
+                            {auth.user && (
                                 <Link
                                     href={dashboard()}
                                     className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
                                 >
                                     Dashboard
                                 </Link>
-                            ) : (
-                                <>
-                                    <Link
-                                        href={login()}
-                                        className="inline-block rounded-sm border border-transparent px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#19140035] dark:text-[#EDEDEC] dark:hover:border-[#3E3E3A]"
-                                    >
-                                        Log in
-                                    </Link>
-                                    <Link
-                                        href={register()}
-                                        className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
-                                    >
-                                        Register
-                                    </Link>
-                                </>
                             )}
                         </div>
                     </nav>
@@ -244,6 +317,8 @@ export default function Welcome() {
                                          'Complete'}
                                     </p>
                                 </div>
+
+
                             </CardHeader>
 
                             <CardContent>
@@ -258,7 +333,7 @@ export default function Welcome() {
                                         </div>
 
                                         <div className="space-y-4">
-                                            {/* Updated Date Picker */}
+                                            {/* Date Picker */}
                                             <div className="flex flex-col gap-3">
                                                 <Label htmlFor="transactionDate" className="px-1">
                                                     Date of Transaction <span className="text-red-500">*</span>
@@ -323,13 +398,13 @@ export default function Welcome() {
                                             </div>
 
                                             <div className="space-y-2">
-                                                <Label htmlFor="email">Email Address</Label>
+                                                <Label htmlFor="email">Email Address <span className="text-red-500">*</span></Label>
                                                 <Input
                                                     id="email"
                                                     type="email"
                                                     value={formData.email}
                                                     onChange={(e) => handleInputChange('email', e.target.value)}
-                                                    placeholder="Enter your email address (optional)"
+                                                    placeholder="Enter your email address"
                                                 />
                                             </div>
 
@@ -425,7 +500,7 @@ export default function Welcome() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label htmlFor="reason">Your Feedback</Label>
+                                            <Label htmlFor="reason">Your Feedback <span className="text-red-500">*</span></Label>
                                             <textarea
                                                 id="reason"
                                                 value={formData.reason}
@@ -523,6 +598,21 @@ export default function Welcome() {
                     </main>
                 </div>
             </div>
+
+            {/* Add Sonner Toaster with shadcn styling */}
+            <Toaster
+                position="top-right"
+                expand={true}
+                richColors
+                toastOptions={{
+                    classNames: {
+                        toast: 'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
+                        description: 'group-[.toast]:text-muted-foreground',
+                        actionButton: 'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
+                        cancelButton: 'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
+                    },
+                }}
+            />
         </>
     );
 }
