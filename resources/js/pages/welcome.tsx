@@ -2,7 +2,7 @@ import { dashboard } from '@/routes';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import { CalendarIcon, LoaderCircle, Sun, Moon, Monitor } from 'lucide-react';
+import { CalendarIcon, LoaderCircle, Sun, Moon, Monitor, FileText, Star, MessageCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
@@ -251,16 +251,21 @@ export default function Welcome() {
                     <nav className="max-w-6xl mx-auto flex items-center justify-between gap-4">
                         {/* Logos on the left */}
                         <div className="flex items-center gap-3">
-                            <img
-                                src="/assets/img/unifast.png"
-                                alt="UNIFAST Logo"
-                                className="h-12 w-auto object-contain"
-                            />
-                            <img
-                                src="/assets/img/ched-logo.png"
-                                alt="CHED Logo"
-                                className="h-13 w-auto object-contain"
-                            />
+                            <div className="flex items-center gap-3">
+                                <img
+                                    src="/assets/img/unifast.png"
+                                    alt="UNIFAST Logo"
+                                    className="h-12 w-auto object-contain"
+                                />
+                                <img
+                                    src="/assets/img/ched-logo.png"
+                                    alt="CHED Logo"
+                                    className="h-13 w-auto object-contain"
+                                />
+                                <div className="text-lg font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">
+                                    UniFAST BARMM
+                                </div>
+                            </div>
                         </div>
 
                         {/* Right side - Theme Toggle + Auth links */}
@@ -302,20 +307,120 @@ export default function Welcome() {
                     <main className="flex w-full max-w-[600px] flex-col items-center">
                         <Card className="w-full">
                             <CardHeader>
-                                {/* Progress Indicator */}
-                                <div className="space-y-4">
+                                {/* Enhanced Progress Indicator */}
+                                <div className="space-y-6">
                                     <div className="flex items-center justify-between">
                                         <h1 className="text-2xl font-semibold">Client Satisfaction Survey</h1>
                                         <Badge variant="outline">
                                             Step {currentStep} of 4
                                         </Badge>
                                     </div>
+
+                                    {/* Interactive Stepper */}
+                                    <div className="flex items-center justify-between relative">
+                                        {/* Step 1 */}
+                                        <div className="flex flex-col items-center space-y-2 relative z-10">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                                                currentStep >= 1
+                                                    ? 'bg-primary border-primary text-primary-foreground'
+                                                    : 'bg-background border-muted-foreground text-muted-foreground'
+                                            }`}>
+                                                {currentStep > 1 ? (
+                                                    <CheckCircle className="w-4 h-4" />
+                                                ) : (
+                                                    <FileText className="w-4 h-4" />
+                                                )}
+                                            </div>
+                                            <div className="text-xs font-medium text-center min-h-[32px] flex flex-col justify-center">
+                                                <div className={currentStep === 1 ? 'text-primary' : 'text-muted-foreground'}>
+                                                    Transaction
+                                                </div>
+                                                <div className={currentStep === 1 ? 'text-primary' : 'text-muted-foreground'}>
+                                                    Information
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Step 2 */}
+                                        <div className="flex flex-col items-center space-y-2 relative z-10">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                                                currentStep >= 2
+                                                    ? 'bg-primary border-primary text-primary-foreground'
+                                                    : 'bg-background border-muted-foreground text-muted-foreground'
+                                            }`}>
+                                                {currentStep > 2 ? (
+                                                    <CheckCircle className="w-4 h-4" />
+                                                ) : (
+                                                    <Star className="w-4 h-4" />
+                                                )}
+                                            </div>
+                                            <div className="text-xs font-medium text-center min-h-[32px] flex flex-col justify-center">
+                                                <div className={currentStep === 2 ? 'text-primary' : 'text-muted-foreground'}>
+                                                    Satisfaction
+                                                </div>
+                                                <div className={currentStep === 2 ? 'text-primary' : 'text-muted-foreground'}>
+                                                    Rating
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Step 3 */}
+                                        <div className="flex flex-col items-center space-y-2 relative z-10">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                                                currentStep >= 3
+                                                    ? 'bg-primary border-primary text-primary-foreground'
+                                                    : 'bg-background border-muted-foreground text-muted-foreground'
+                                            }`}>
+                                                {currentStep > 3 ? (
+                                                    <CheckCircle className="w-4 h-4" />
+                                                ) : (
+                                                    <MessageCircle className="w-4 h-4" />
+                                                )}
+                                            </div>
+                                            <div className="text-xs font-medium text-center min-h-[32px] flex flex-col justify-center">
+                                                <div className={currentStep === 3 ? 'text-primary' : 'text-muted-foreground'}>
+                                                    Feedback
+                                                </div>
+                                                <div className={currentStep === 3 ? 'text-primary' : 'text-muted-foreground'}>
+                                                    Details
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Step 4 */}
+                                        <div className="flex flex-col items-center space-y-2 relative z-10">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                                                currentStep >= 4
+                                                    ? 'bg-green-600 border-green-600 text-white'
+                                                    : 'bg-background border-muted-foreground text-muted-foreground'
+                                            }`}>
+                                                <CheckCircle className="w-4 h-4" />
+                                            </div>
+                                            <div className="text-xs font-medium text-center min-h-[32px] flex flex-col justify-center">
+                                                <div className={currentStep === 4 ? 'text-green-600' : 'text-muted-foreground'}>
+                                                    Complete
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Connection Lines */}
+                                        <div className="absolute top-5 left-0 right-0 h-0.5 bg-muted-foreground/20 -z-10">
+                                            <div
+                                                className="h-full bg-primary transition-all duration-500 ease-out"
+                                                style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Progress Bar */}
                                     <Progress value={progressPercentage} className="w-full" />
-                                    <p className="text-sm text-muted-foreground">
-                                        {currentStep === 1 ? 'Transaction Information' :
-                                         currentStep === 2 ? 'Satisfaction Rating' :
-                                         currentStep === 3 ? 'Feedback Details' :
-                                         'Complete'}
+
+                                    {/* Step Description */}
+                                    <p className="text-sm text-muted-foreground text-center">
+                                        {currentStep === 1 ? 'Please provide the details of your transaction' :
+                                         currentStep === 2 ? 'Rate your satisfaction with our service' :
+                                         currentStep === 3 ? 'Share your detailed feedback with us' :
+                                         'Thank you for your valuable feedback!'}
                                     </p>
                                 </div>
                             </CardHeader>
@@ -377,6 +482,12 @@ export default function Welcome() {
                                                                 onSelect={(date) => {
                                                                     handleDateChange(date);
                                                                     setDatePickerOpen(false);
+                                                                }}
+                                                                disabled={(date) => {
+                                                                    // Disable future dates (dates after today)
+                                                                    const today = new Date();
+                                                                    today.setHours(23, 59, 59, 999); // Set to end of today
+                                                                    return date > today;
                                                                 }}
                                                                 className="w-full"
                                                             />

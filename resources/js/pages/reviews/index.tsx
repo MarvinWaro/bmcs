@@ -89,9 +89,9 @@ export default function ClientReviewsIndex() {
                                 <Table>
                                     <TableHeader>
                                          <TableRow className="border-bborder-border/50 bg-muted/30 hover:bg-muted/30">
-                                            <TableHead className="h-12 px-6 text-sm font-semibold text-foreground/90 w-[280px]">Client</TableHead>
-                                            <TableHead className="h-12 px-6 text-sm font-semibold text-foreground/90 w-[350px]">Rating & Comment</TableHead>
-                                            <TableHead className="h-12 px-6 pr-6 text-sm font-semibold text-foreground/90 text-center">Details</TableHead>
+                                            <TableHead className="h-12 px-6 text-sm font-semibold text-foreground/90 w-[25%]">Client</TableHead>
+                                            <TableHead className="h-12 px-6 text-sm font-semibold text-foreground/90 w-[45%]">Rating & Comment</TableHead>
+                                            <TableHead className="h-12 px-6 text-sm font-semibold text-foreground/90 w-[30%]">Details</TableHead>
                                         </TableRow>
                                     </TableHeader>
 
