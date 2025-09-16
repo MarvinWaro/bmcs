@@ -20,6 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import Footer from '@/components/welcome-footer'; // Add this import
 
 function formatDate(date: Date | undefined) {
     if (!date) {
@@ -245,9 +246,9 @@ export default function Welcome() {
                 <link rel="preconnect" href="https://fonts.bunny.net" />
                 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
             </Head>
-            <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a] dark:text-[#EDEDEC]">
-                <header className="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl bg-[#FDFDFC]/80 dark:bg-[#0a0a0a]/80 backdrop-blur-sm shadow-sm border-b border-[#19140035]/20 dark:border-[#3E3E3A]/30 sticky top-0 z-50 py-4 px-6 rounded-lg">
-                    <nav className="flex items-center justify-between gap-4">
+            <div className="flex min-h-screen flex-col bg-[#FDFDFC] text-[#1b1b18] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]">
+                <header className="w-full mb-6 px-6 text-sm bg-[#FDFDFC]/80 dark:bg-[#0a0a0a]/80 backdrop-blur-sm shadow-sm border-b border-[#19140035]/20 dark:border-[#3E3E3A]/30 sticky top-0 z-50 py-4">
+                    <nav className="max-w-6xl mx-auto flex items-center justify-between gap-4">
                         {/* Logos on the left */}
                         <div className="flex items-center gap-3">
                             <img
@@ -297,7 +298,7 @@ export default function Welcome() {
                     </nav>
                 </header>
 
-                <div className="flex w-full items-center justify-center opacity-100 transition-opacity duration-750 lg:grow">
+                <div className="flex-1 flex items-center justify-center p-6 lg:p-8">
                     <main className="flex w-full max-w-[600px] flex-col items-center">
                         <Card className="w-full">
                             <CardHeader>
@@ -317,8 +318,6 @@ export default function Welcome() {
                                          'Complete'}
                                     </p>
                                 </div>
-
-
                             </CardHeader>
 
                             <CardContent>
@@ -597,6 +596,9 @@ export default function Welcome() {
                         </Card>
                     </main>
                 </div>
+
+                {/* Footer */}
+                <Footer />
             </div>
 
             {/* Add Sonner Toaster with shadcn styling */}
