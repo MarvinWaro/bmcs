@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { TableCell, TableRow } from '@/components/ui/table';
 import { ReviewRow } from '@/pages/reviews';
 import { useForm } from '@inertiajs/react';
-import { AlertTriangle, Calendar, Star, Trash2, User } from 'lucide-react';
+import { AlertTriangle, Calendar, Trash2, User } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -41,20 +41,6 @@ export default function ReviewRowTemplate({ row, index }: ReviewRowTemplateProps
         });
     }
 
-    // Helper function to render star rating
-    const renderStars = (rating: number) => {
-        return Array.from({ length: 5 }, (_, index) => (
-            <Star
-                key={index}
-                className={`h-3 w-3 ${
-                    index < rating
-                        ? 'fill-yellow-400 text-yellow-400'
-                        : 'fill-gray-200 text-gray-200'
-                }`}
-            />
-        ));
-    };
-
     // Helper function to get status badge variant
     const getStatusBadgeVariant = (status: string) => {
         switch (status) {
@@ -89,6 +75,20 @@ export default function ReviewRowTemplate({ row, index }: ReviewRowTemplateProps
         }
     };
 
+    // Helper function to get satisfaction label
+    const getSatisfactionLabel = (rating: string) => {
+        switch (rating) {
+            case 'satisfied':
+                return 'Satisfied';
+            case 'neutral':
+                return 'Neutral';
+            case 'dissatisfied':
+                return 'Dissatisfied';
+            default:
+                return rating;
+        }
+    };
+
     return (
         <TableRow className="group border-b border-border/30 transition-all duration-150 hover:bg-muted/20 hover:shadow-sm">
             <TableCell className="px-6 py-5">
@@ -105,15 +105,12 @@ export default function ReviewRowTemplate({ row, index }: ReviewRowTemplateProps
 
             <TableCell className="px-6 py-5">
                 <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center space-x-1">
-                            {renderStars(row.rating)}
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                            {row.rating}/5
-                        </span>
-                        <span className="text-lg ml-2">
+                    <div className="flex items-center gap-3">
+                        <span className="text-2xl">
                             {getSatisfactionEmoji(row.satisfactionRating)}
+                        </span>
+                        <span className="text-sm font-medium text-foreground">
+                            {getSatisfactionLabel(row.satisfactionRating)}
                         </span>
                     </div>
                     <div className="max-w-xs">
