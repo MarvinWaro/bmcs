@@ -90,27 +90,6 @@ class ClientSatisfactionSurveyController extends Controller
     }
 
     /**
-     * Update a survey status (for admin actions)
-     */
-    public function update(Request $request, ClientSatisfactionSurvey $clientSatisfactionSurvey): RedirectResponse
-    {
-        $validated = $request->validate([
-            'status' => 'required|string|in:submitted,reviewed,resolved',
-            'admin_notes' => 'nullable|string|max:1000',
-        ]);
-
-        try {
-            $clientSatisfactionSurvey->update($validated);
-
-            return redirect()->back()->with('success', 'Survey updated successfully.');
-        } catch (\Exception $e) {
-            \Log::error('Error updating survey: ' . $e->getMessage());
-
-            return redirect()->back()->withErrors(['general' => 'Failed to update survey.']);
-        }
-    }
-
-    /**
      * Delete a survey (admin only)
      */
     public function destroy(ClientSatisfactionSurvey $clientSatisfactionSurvey): RedirectResponse
@@ -140,7 +119,7 @@ class ClientSatisfactionSurveyController extends Controller
     }
 
     /**
-     * Map satisfaction rating to star rating (1-5) - Keep for backwards compatibility
+     * Map satisfaction rating to star rating (1-5)
      */
     private function mapSatisfactionToStars(string $satisfaction): int
     {
