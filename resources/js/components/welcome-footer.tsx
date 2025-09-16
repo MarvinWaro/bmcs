@@ -55,18 +55,20 @@ export default function Footer() {
                     <div className="flex w-full flex-col justify-between gap-6 lg:max-w-md">
                         {/* Logo Section */}
                         <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                                 <img
                                     src="/assets/img/unifast.png"
                                     alt="UNIFAST Logo"
-                                    className="h-12 w-auto object-contain"
+                                    className="h-8 w-auto object-contain"
                                 />
-
                                 <img
                                     src="/assets/img/ched-logo.png"
                                     alt="CHED Logo"
-                                    className="h-13 w-auto object-contain"
+                                    className="h-8 w-auto object-contain"
                                 />
+                                <div className="text-lg font-semibold text-foreground">
+                                    UniFAST BARMM
+                                </div>
                             </div>
                         </div>
 

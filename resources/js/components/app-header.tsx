@@ -97,7 +97,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     return (
         <>
             {/* Main Header */}
-            <div className="bg-gradient-to-r from-[#006241] to-[#006241] text-white shadow-lg">
+            <div className="bg-gradient-to-r from-[#222831] to-[#222831] text-white shadow-lg">
                 <div className="mx-auto max-w-7xl flex h-16 items-center justify-between px-6">
                     {/* Left Section - Mobile Menu and Logo */}
                     <div className="flex items-center space-x-4">
@@ -130,9 +130,12 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                             </Sheet>
                         </div>
 
-                        {/* Logo */}
-                        <Link href={homeUrl} prefetch>
+                        {/* Logo and Title */}
+                        <Link href={homeUrl} prefetch className="flex items-center space-x-3">
                             <img src="/assets/img/unifast.png" alt="UNIFAST Logo" className="h-10 w-auto object-contain" />
+                            <div className="text-lg font-semibold text-white">
+                                UniFAST BARMM Admin
+                            </div>
                         </Link>
                     </div>
 
