@@ -1,5 +1,4 @@
 <?php
-// database/migrations/2024_01_01_000000_create_client_satisfaction_surveys_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -15,19 +14,34 @@ return new class extends Migration
         Schema::create('client_satisfaction_surveys', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->date('transaction_date');
-            $table->string('client_name');
-            $table->string('email')->nullable();
+
+            // Separate name fields instead of single client_name
+            $table->string('first_name');
+            $table->string('middle_name')->nullable();
+            $table->string('last_name');
+
+            $table->string('email');
             $table->string('school_hei');
+            $table->string('other_school_specify')->nullable();
             $table->string('transaction_type');
+            $table->string('other_transaction_specify')->nullable();
             $table->enum('satisfaction_rating', ['dissatisfied', 'neutral', 'satisfied']);
             $table->text('reason');
+
+            // Admin fields
+            $table->string('status')->default('submitted');
+            $table->text('admin_notes')->nullable();
+
             $table->timestamps();
 
             // Add indexes for common queries
             $table->index('transaction_date');
+            $table->index('first_name');
+            $table->index('last_name');
             $table->index('satisfaction_rating');
             $table->index('transaction_type');
             $table->index('school_hei');
+            $table->index('status');
         });
     }
 

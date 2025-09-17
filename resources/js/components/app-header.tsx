@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Menu, Moon, Sun, Monitor, Star, GraduationCap } from 'lucide-react';
+import { LayoutGrid, Menu, Moon, Sun, Monitor, Star, GraduationCap, School } from 'lucide-react';
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 
@@ -30,9 +30,9 @@ const adminNavItems: NavItem[] = [
         icon: Star,
     },
     {
-        title: 'Schools',
+        title: 'Schools / Institutions',
         href: '/schools',
-        icon: GraduationCap,
+        icon: School,
     },
 ];
 
