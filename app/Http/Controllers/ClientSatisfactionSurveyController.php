@@ -23,19 +23,25 @@ class ClientSatisfactionSurveyController extends Controller
         $reviews = $surveys->map(function ($survey) {
             return [
                 'id' => $survey->id,
-                'clientName' => $survey->client_name,
+                'clientName' => $survey->full_name, // Use the accessor for full name
+                'firstName' => $survey->first_name,
+                'middleName' => $survey->middle_name,
+                'lastName' => $survey->last_name,
+                'displayName' => $survey->display_name, // Last, First Middle format
+                'formalName' => $survey->formal_name, // First Middle Last format
                 'email' => $survey->email,
                 'rating' => $this->mapSatisfactionToStars($survey->satisfaction_rating),
                 'comment' => $survey->reason,
                 'date' => $survey->transaction_date->format('Y-m-d'),
                 'status' => $survey->status ?? 'submitted',
-                'loanType' => $survey->full_transaction_type, // Use the accessor for full display
-                'schoolHei' => $survey->full_school_name, // Use the new accessor for full school display
+                'loanType' => $survey->full_transaction_type,
+                'schoolHei' => $survey->full_school_name,
                 'satisfactionRating' => $survey->satisfaction_rating,
                 'transactionType' => $survey->transaction_type,
                 'otherTransactionSpecify' => $survey->other_transaction_specify,
-                'otherSchoolSpecify' => $survey->other_school_specify, // Add this new field
+                'otherSchoolSpecify' => $survey->other_school_specify,
                 'submittedAt' => $survey->created_at->format('Y-m-d H:i:s'),
+                'adminNotes' => $survey->admin_notes,
             ];
         });
 
@@ -51,7 +57,9 @@ class ClientSatisfactionSurveyController extends Controller
     {
         $validated = $request->validate([
             'transaction_date' => 'required|date|before_or_equal:today',
-            'client_name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'school_hei' => ['required', 'string', Rule::in(array_merge(
                 School::pluck('id')->toArray(),
@@ -61,7 +69,6 @@ class ClientSatisfactionSurveyController extends Controller
                 'nullable',
                 'string',
                 'max:255',
-                // Required only if school_hei is 'other'
                 Rule::requiredIf($request->school_hei === 'other')
             ],
             'transaction_type' => ['required', 'string', Rule::in([
@@ -77,7 +84,6 @@ class ClientSatisfactionSurveyController extends Controller
                 'nullable',
                 'string',
                 'max:255',
-                // Required only if transaction_type is 'other'
                 Rule::requiredIf($request->transaction_type === 'other')
             ],
             'satisfaction_rating' => ['required', 'string', Rule::in([
@@ -90,8 +96,11 @@ class ClientSatisfactionSurveyController extends Controller
             'transaction_date.required' => 'The transaction date is required.',
             'transaction_date.date' => 'Please enter a valid date.',
             'transaction_date.before_or_equal' => 'The transaction date cannot be in the future.',
-            'client_name.required' => 'Your name is required.',
-            'client_name.max' => 'Your name cannot exceed 255 characters.',
+            'first_name.required' => 'Your first name is required.',
+            'first_name.max' => 'Your first name cannot exceed 255 characters.',
+            'middle_name.max' => 'Your middle name cannot exceed 255 characters.',
+            'last_name.required' => 'Your last name is required.',
+            'last_name.max' => 'Your last name cannot exceed 255 characters.',
             'email.required' => 'Your email address is required.',
             'email.email' => 'Please enter a valid email address.',
             'email.max' => 'Your email address cannot exceed 255 characters.',
@@ -117,7 +126,6 @@ class ClientSatisfactionSurveyController extends Controller
                 if ($school) {
                     $validated['school_hei'] = $school->name;
                 }
-                // Clear other_school_specify if not using "other"
                 $validated['other_school_specify'] = null;
             }
 
@@ -134,7 +142,6 @@ class ClientSatisfactionSurveyController extends Controller
             return redirect()->back()->with('success', 'Thank you for your feedback! Your response has been recorded.');
 
         } catch (\Exception $e) {
-            // Log the error for debugging
             \Log::error('Error saving client satisfaction survey: ' . $e->getMessage(), [
                 'data' => $validated,
                 'exception' => $e
@@ -197,30 +204,15 @@ class ClientSatisfactionSurveyController extends Controller
     }
 
     /**
-     * Format transaction type for display
-     */
-    private function formatTransactionType(string $type): string
-    {
-        return match($type) {
-            'enrollment' => 'Enrollment',
-            'payment' => 'Payment',
-            'transcript' => 'Transcript Request',
-            'certification' => 'Certification',
-            'scholarship' => 'Scholarship Application',
-            'consultation' => 'Consultation',
-            'other' => 'Other',
-            default => ucfirst($type),
-        };
-    }
-
-    /**
      * Get validation rules for the form
      */
     public static function getValidationRules(): array
     {
         return [
             'transaction_date' => 'required|date|before_or_equal:today',
-            'client_name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'school_hei' => ['required', 'string', Rule::in(array_merge(
                 School::pluck('id')->toArray(),
@@ -265,8 +257,11 @@ class ClientSatisfactionSurveyController extends Controller
             'transaction_date.required' => 'The transaction date is required.',
             'transaction_date.date' => 'Please enter a valid date.',
             'transaction_date.before_or_equal' => 'The transaction date cannot be in the future.',
-            'client_name.required' => 'Your name is required.',
-            'client_name.max' => 'Your name cannot exceed 255 characters.',
+            'first_name.required' => 'Your first name is required.',
+            'first_name.max' => 'Your first name cannot exceed 255 characters.',
+            'middle_name.max' => 'Your middle name cannot exceed 255 characters.',
+            'last_name.required' => 'Your last name is required.',
+            'last_name.max' => 'Your last name cannot exceed 255 characters.',
             'email.required' => 'Your email address is required.',
             'email.email' => 'Please enter a valid email address.',
             'email.max' => 'Your email address cannot exceed 255 characters.',

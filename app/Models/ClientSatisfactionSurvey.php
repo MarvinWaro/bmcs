@@ -13,19 +13,55 @@ class ClientSatisfactionSurvey extends Model
 
     protected $fillable = [
         'transaction_date',
-        'client_name',
+        'first_name',
+        'middle_name',
+        'last_name',
         'email',
         'school_hei',
-        'other_school_specify', // Add this new field
+        'other_school_specify',
         'transaction_type',
         'other_transaction_specify',
         'satisfaction_rating',
         'reason',
+        'status',
+        'admin_notes',
     ];
 
     protected $casts = [
         'transaction_date' => 'date',
     ];
+
+    // Accessor for full client name
+    public function getFullNameAttribute()
+    {
+        $parts = array_filter([
+            $this->first_name,
+            $this->middle_name,
+            $this->last_name
+        ]);
+
+        return implode(' ', $parts);
+    }
+
+    // Accessor for display name (Last, First Middle format)
+    public function getDisplayNameAttribute()
+    {
+        $firstName = $this->first_name;
+        $middleName = $this->middle_name ? ' ' . $this->middle_name : '';
+        $lastName = $this->last_name;
+
+        if ($firstName && $lastName) {
+            return $lastName . ', ' . $firstName . $middleName;
+        }
+
+        return $this->getFullNameAttribute();
+    }
+
+    // Accessor for formal name (First Middle Last format)
+    public function getFormalNameAttribute()
+    {
+        return $this->getFullNameAttribute();
+    }
 
     // Add accessor for full school display name
     public function getFullSchoolNameAttribute()
@@ -37,7 +73,7 @@ class ClientSatisfactionSurvey extends Model
         return $this->school_hei;
     }
 
-    // Rest of your existing methods...
+    // Scopes
     public function scopeBySatisfactionRating($query, $rating)
     {
         return $query->where('satisfaction_rating', $rating);
@@ -58,6 +94,16 @@ class ClientSatisfactionSurvey extends Model
         return $query->whereBetween('transaction_date', [$startDate, $endDate]);
     }
 
+    public function scopeByClientName($query, $searchTerm)
+    {
+        return $query->where(function($q) use ($searchTerm) {
+            $q->where('first_name', 'like', "%{$searchTerm}%")
+              ->orWhere('middle_name', 'like', "%{$searchTerm}%")
+              ->orWhere('last_name', 'like', "%{$searchTerm}%");
+        });
+    }
+
+    // Accessors for display
     public function getFormattedTransactionDateAttribute()
     {
         return $this->transaction_date->format('F d, Y');
