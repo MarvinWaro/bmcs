@@ -113,7 +113,6 @@ class ClientSatisfactionSurvey extends Model
     {
         return match($this->satisfaction_rating) {
             'satisfied' => '😊 Satisfied',
-            'neutral' => '😐 Neutral',
             'dissatisfied' => '😞 Dissatisfied',
             default => $this->satisfaction_rating,
         };

@@ -88,8 +88,7 @@ class ClientSatisfactionSurveyController extends Controller
             ],
             'satisfaction_rating' => ['required', 'string', Rule::in([
                 'dissatisfied',
-                'neutral',
-                'satisfied'
+                'satisfied' // Removed 'neutral'
             ])],
             'reason' => 'required|string|min:10|max:2000',
         ], [
@@ -197,8 +196,7 @@ class ClientSatisfactionSurveyController extends Controller
     {
         return match($satisfaction) {
             'dissatisfied' => 2,
-            'neutral' => 3,
-            'satisfied' => 5,
+            'satisfied' => 5, // Removed neutral case
             default => 3,
         };
     }
@@ -241,8 +239,7 @@ class ClientSatisfactionSurveyController extends Controller
             ],
             'satisfaction_rating' => ['required', 'string', Rule::in([
                 'dissatisfied',
-                'neutral',
-                'satisfied'
+                'satisfied' // Removed 'neutral'
             ])],
             'reason' => 'required|string|min:10|max:2000',
         ];

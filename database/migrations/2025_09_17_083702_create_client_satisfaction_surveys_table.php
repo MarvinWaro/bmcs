@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('other_school_specify')->nullable();
             $table->string('transaction_type');
             $table->string('other_transaction_specify')->nullable();
-            $table->enum('satisfaction_rating', ['dissatisfied', 'neutral', 'satisfied']);
+            $table->enum('satisfaction_rating', ['dissatisfied', 'satisfied']); // Removed 'neutral'
             $table->text('reason');
 
             // Admin fields
