@@ -60,6 +60,7 @@ export default function Welcome() {
         transactionDate: '',
         clientName: '',
         schoolHEI: '',
+        otherSchoolSpecify: '', // Add this new field
         transactionType: '',
         otherTransactionSpecify: '',
         email: '',
@@ -113,6 +114,7 @@ export default function Welcome() {
                         'client_name': 'Client Name',
                         'email': 'Email Address',
                         'school_hei': 'School/HEI',
+                        'other_school_specify': 'School Specification', // Add this new field
                         'transaction_type': 'Transaction Type',
                         'other_transaction_specify': 'Transaction Specification',
                         'satisfaction_rating': 'Satisfaction Rating',
@@ -172,6 +174,7 @@ export default function Welcome() {
             client_name: formData.clientName,
             email: formData.email,
             school_hei: formData.schoolHEI,
+            other_school_specify: formData.otherSchoolSpecify, // Add this new field
             transaction_type: formData.transactionType,
             other_transaction_specify: formData.otherTransactionSpecify,
             satisfaction_rating: formData.satisfactionRating,
@@ -195,6 +198,7 @@ export default function Welcome() {
             transactionDate: '',
             clientName: '',
             schoolHEI: '',
+            otherSchoolSpecify: '', // Add this new field
             transactionType: '',
             otherTransactionSpecify: '',
             email: '',
@@ -245,16 +249,30 @@ export default function Welcome() {
     const canProceedToRating = () => {
         const hasBasicInfo = formData.transactionDate && formData.clientName && formData.email && formData.schoolHEI && formData.transactionType;
 
-        if (formData.transactionType === 'other') {
-            return hasBasicInfo && formData.otherTransactionSpecify.trim();
+        // Check for "other" cases
+        let schoolValid = true;
+        let transactionValid = true;
+
+        // If school is "other", check if specification is provided
+        if (formData.schoolHEI === 'other') {
+            schoolValid = formData.otherSchoolSpecify.trim().length > 0;
         }
 
-        return hasBasicInfo;
+        // If transaction type is "other", check if specification is provided
+        if (formData.transactionType === 'other') {
+            transactionValid = formData.otherTransactionSpecify.trim().length > 0;
+        }
+
+        return hasBasicInfo && schoolValid && transactionValid;
     };
 
     // Get selected school name for display
     const getSelectedSchoolName = () => {
         if (!formData.schoolHEI) return '';
+        if (formData.schoolHEI === 'other') {
+            return formData.otherSchoolSpecify || 'Other (Not Specified)';
+        }
+
         const selectedSchool = schools.find(school => school.id === formData.schoolHEI);
         return selectedSchool ? selectedSchool.name : formData.schoolHEI;
     };
@@ -530,7 +548,13 @@ export default function Welcome() {
                                                 <Label htmlFor="schoolHEI">School/HEI <span className="text-red-500">*</span></Label>
                                                 <Select
                                                     value={formData.schoolHEI}
-                                                    onValueChange={(value) => handleInputChange('schoolHEI', value)}
+                                                    onValueChange={(value) => {
+                                                        handleInputChange('schoolHEI', value);
+                                                        // Clear the other school specification when changing school
+                                                        if (value !== 'other') {
+                                                            handleInputChange('otherSchoolSpecify', '');
+                                                        }
+                                                    }}
                                                 >
                                                     <SelectTrigger id="schoolHEI">
                                                         <SelectValue placeholder="Select your school or institution" />
@@ -550,12 +574,12 @@ export default function Welcome() {
                                             {/* Show manual input if "Other" is selected */}
                                             {formData.schoolHEI === 'other' && (
                                                 <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
-                                                    <Label htmlFor="schoolHEIManual">Please specify your school/institution <span className="text-red-500">*</span></Label>
+                                                    <Label htmlFor="otherSchoolSpecify">Please specify your school/institution <span className="text-red-500">*</span></Label>
                                                     <Input
-                                                        id="schoolHEIManual"
+                                                        id="otherSchoolSpecify"
                                                         type="text"
-                                                        value={formData.schoolHEI === 'other' ? '' : formData.schoolHEI}
-                                                        onChange={(e) => handleInputChange('schoolHEI', e.target.value)}
+                                                        value={formData.otherSchoolSpecify}
+                                                        onChange={(e) => handleInputChange('otherSchoolSpecify', e.target.value)}
                                                         placeholder="Enter your school or higher education institution"
                                                         className="bg-background"
                                                     />
