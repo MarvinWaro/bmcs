@@ -27,11 +27,12 @@ class ClientSatisfactionSurveyController extends Controller
                 'rating' => $this->mapSatisfactionToStars($survey->satisfaction_rating),
                 'comment' => $survey->reason,
                 'date' => $survey->transaction_date->format('Y-m-d'),
-                'status' => $survey->status ?? 'submitted', // Use existing status or default to submitted
-                'loanType' => $this->formatTransactionType($survey->transaction_type),
+                'status' => $survey->status ?? 'submitted',
+                'loanType' => $survey->full_transaction_type, // Use the accessor for full display
                 'schoolHei' => $survey->school_hei,
                 'satisfactionRating' => $survey->satisfaction_rating,
                 'transactionType' => $survey->transaction_type,
+                'otherTransactionSpecify' => $survey->other_transaction_specify,
                 'submittedAt' => $survey->created_at->format('Y-m-d H:i:s'),
             ];
         });
@@ -60,6 +61,13 @@ class ClientSatisfactionSurveyController extends Controller
                 'consultation',
                 'other'
             ])],
+            'other_transaction_specify' => [
+                'nullable',
+                'string',
+                'max:255',
+                // Required only if transaction_type is 'other'
+                Rule::requiredIf($request->transaction_type === 'other')
+            ],
             'satisfaction_rating' => ['required', 'string', Rule::in([
                 'dissatisfied',
                 'neutral',
@@ -79,6 +87,8 @@ class ClientSatisfactionSurveyController extends Controller
             'school_hei.max' => 'School/HEI name cannot exceed 255 characters.',
             'transaction_type.required' => 'Please select a transaction type.',
             'transaction_type.in' => 'Please select a valid transaction type.',
+            'other_transaction_specify.required' => 'Please specify the type of transaction when selecting "Other".',
+            'other_transaction_specify.max' => 'Transaction specification cannot exceed 255 characters.',
             'satisfaction_rating.required' => 'Please select your satisfaction rating.',
             'satisfaction_rating.in' => 'Please select a valid satisfaction rating.',
             'reason.required' => 'Please provide your feedback.',
@@ -89,6 +99,11 @@ class ClientSatisfactionSurveyController extends Controller
         try {
             // Create the survey response with default status
             $validated['status'] = 'submitted';
+
+            // If transaction_type is not 'other', clear the other_transaction_specify field
+            if ($validated['transaction_type'] !== 'other') {
+                $validated['other_transaction_specify'] = null;
+            }
 
             ClientSatisfactionSurvey::create($validated);
 
@@ -193,6 +208,7 @@ class ClientSatisfactionSurveyController extends Controller
                 'consultation',
                 'other'
             ])],
+            'other_transaction_specify' => 'nullable|string|max:255',
             'satisfaction_rating' => ['required', 'string', Rule::in([
                 'dissatisfied',
                 'neutral',
@@ -220,6 +236,8 @@ class ClientSatisfactionSurveyController extends Controller
             'school_hei.max' => 'School/HEI name cannot exceed 255 characters.',
             'transaction_type.required' => 'Please select a transaction type.',
             'transaction_type.in' => 'Please select a valid transaction type.',
+            'other_transaction_specify.required' => 'Please specify the type of transaction when selecting "Other".',
+            'other_transaction_specify.max' => 'Transaction specification cannot exceed 255 characters.',
             'satisfaction_rating.required' => 'Please select your satisfaction rating.',
             'satisfaction_rating.in' => 'Please select a valid satisfaction rating.',
             'reason.required' => 'Please provide your feedback.',

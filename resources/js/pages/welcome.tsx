@@ -54,6 +54,7 @@ export default function Welcome() {
         clientName: '',
         schoolHEI: '',
         transactionType: '',
+        otherTransactionSpecify: '', // Add the new field
         email: '',
         satisfactionRating: '',
         reason: ''
@@ -107,6 +108,7 @@ export default function Welcome() {
                         'email': 'Email Address',
                         'school_hei': 'School/HEI',
                         'transaction_type': 'Transaction Type',
+                        'other_transaction_specify': 'Transaction Specification',
                         'satisfaction_rating': 'Satisfaction Rating',
                         'reason': 'Feedback'
                     };
@@ -166,6 +168,7 @@ export default function Welcome() {
             email: formData.email,
             school_hei: formData.schoolHEI,
             transaction_type: formData.transactionType,
+            other_transaction_specify: formData.otherTransactionSpecify, // Add the new field
             satisfaction_rating: formData.satisfactionRating,
             reason: formData.reason
         };
@@ -189,6 +192,7 @@ export default function Welcome() {
             clientName: '',
             schoolHEI: '',
             transactionType: '',
+            otherTransactionSpecify: '', // Add the new field
             email: '',
             satisfactionRating: '',
             reason: ''
@@ -235,7 +239,14 @@ export default function Welcome() {
     };
 
     const canProceedToRating = () => {
-        return formData.transactionDate && formData.clientName && formData.email && formData.schoolHEI && formData.transactionType;
+        const hasBasicInfo = formData.transactionDate && formData.clientName && formData.email && formData.schoolHEI && formData.transactionType;
+
+        // If transaction type is "other", also check if specification is provided
+        if (formData.transactionType === 'other') {
+            return hasBasicInfo && formData.otherTransactionSpecify.trim();
+        }
+
+        return hasBasicInfo;
     };
 
     const progressPercentage = (currentStep / 4) * 100;
@@ -533,7 +544,13 @@ export default function Welcome() {
                                                 <Label htmlFor="transactionType">Type of Transaction <span className="text-red-500">*</span></Label>
                                                 <Select
                                                     value={formData.transactionType}
-                                                    onValueChange={(value) => handleInputChange('transactionType', value)}
+                                                    onValueChange={(value) => {
+                                                        handleInputChange('transactionType', value);
+                                                        // Clear the other specification when changing transaction type
+                                                        if (value !== 'other') {
+                                                            handleInputChange('otherTransactionSpecify', '');
+                                                        }
+                                                    }}
                                                 >
                                                     <SelectTrigger id="transactionType">
                                                         <SelectValue placeholder="Select transaction type" />
@@ -549,6 +566,21 @@ export default function Welcome() {
                                                     </SelectContent>
                                                 </Select>
                                             </div>
+
+                                            {/* Conditional input for "Other" transaction type */}
+                                            {formData.transactionType === 'other' && (
+                                                <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                                    <Label htmlFor="otherTransactionSpecify">Please specify the transaction type <span className="text-red-500">*</span></Label>
+                                                    <Input
+                                                        id="otherTransactionSpecify"
+                                                        type="text"
+                                                        value={formData.otherTransactionSpecify}
+                                                        onChange={(e) => handleInputChange('otherTransactionSpecify', e.target.value)}
+                                                        placeholder="Please describe the type of transaction"
+                                                        className="bg-background"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex justify-end">
@@ -673,7 +705,12 @@ export default function Welcome() {
                                                     </div>
                                                     <div className="flex justify-between">
                                                         <span className="font-medium">Transaction:</span>
-                                                        <span className="capitalize">{formData.transactionType}</span>
+                                                        <span className="capitalize text-right">
+                                                            {formData.transactionType === 'other' && formData.otherTransactionSpecify
+                                                                ? `Other: ${formData.otherTransactionSpecify}`
+                                                                : formData.transactionType
+                                                            }
+                                                        </span>
                                                     </div>
                                                     <div className="flex justify-between">
                                                         <span className="font-medium">Date:</span>

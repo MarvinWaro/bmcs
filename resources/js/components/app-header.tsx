@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Menu, Moon, Sun, Monitor, Star } from 'lucide-react';
+import { LayoutGrid, Menu, Moon, Sun, Monitor, Star, GraduationCap } from 'lucide-react';
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 
@@ -28,6 +28,11 @@ const adminNavItems: NavItem[] = [
         title: 'Client Reviews',
         href: '/client-reviews',
         icon: Star,
+    },
+    {
+        title: 'Schools',
+        href: '/schools',
+        icon: GraduationCap,
     },
 ];
 
