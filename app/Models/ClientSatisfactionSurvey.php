@@ -1,5 +1,4 @@
 <?php
-// app/Models/ClientSatisfactionSurvey.php
 
 namespace App\Models;
 
@@ -18,6 +17,7 @@ class ClientSatisfactionSurvey extends Model
         'email',
         'school_hei',
         'transaction_type',
+        'other_transaction_specify', // Add this new field
         'satisfaction_rating',
         'reason',
     ];
@@ -64,6 +64,25 @@ class ClientSatisfactionSurvey extends Model
             'neutral' => '😐 Neutral',
             'dissatisfied' => '😞 Dissatisfied',
             default => $this->satisfaction_rating,
+        };
+    }
+
+    // Get full transaction type display name
+    public function getFullTransactionTypeAttribute()
+    {
+        if ($this->transaction_type === 'other' && $this->other_transaction_specify) {
+            return 'Other: ' . $this->other_transaction_specify;
+        }
+
+        return match($this->transaction_type) {
+            'enrollment' => 'Enrollment',
+            'payment' => 'Payment',
+            'transcript' => 'Transcript Request',
+            'certification' => 'Certification',
+            'scholarship' => 'Scholarship Application',
+            'consultation' => 'Consultation',
+            'other' => 'Other',
+            default => ucfirst($this->transaction_type),
         };
     }
 }

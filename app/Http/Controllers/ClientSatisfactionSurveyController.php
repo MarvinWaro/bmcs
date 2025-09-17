@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClientSatisfactionSurvey;
+use App\Models\School;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rule;
@@ -27,11 +28,12 @@ class ClientSatisfactionSurveyController extends Controller
                 'rating' => $this->mapSatisfactionToStars($survey->satisfaction_rating),
                 'comment' => $survey->reason,
                 'date' => $survey->transaction_date->format('Y-m-d'),
-                'status' => $survey->status ?? 'submitted', // Use existing status or default to submitted
-                'loanType' => $this->formatTransactionType($survey->transaction_type),
+                'status' => $survey->status ?? 'submitted',
+                'loanType' => $survey->full_transaction_type, // Use the accessor for full display
                 'schoolHei' => $survey->school_hei,
                 'satisfactionRating' => $survey->satisfaction_rating,
                 'transactionType' => $survey->transaction_type,
+                'otherTransactionSpecify' => $survey->other_transaction_specify,
                 'submittedAt' => $survey->created_at->format('Y-m-d H:i:s'),
             ];
         });
@@ -50,7 +52,30 @@ class ClientSatisfactionSurveyController extends Controller
             'transaction_date' => 'required|date|before_or_equal:today',
             'client_name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            'school_hei' => 'required|string|max:255',
+            'school_hei' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    // If value is "other", it means manual entry will be provided
+                    if ($value === 'other') {
+                        return; // This will be handled by the manual input validation
+                    }
+
+                    // Check if it's a valid school ID (ULID format)
+                    if (strlen($value) === 26) { // ULID length
+                        $school = School::find($value);
+                        if (!$school) {
+                            $fail('The selected school is invalid.');
+                        }
+                    } else {
+                        // For manual entries, ensure minimum length
+                        if (strlen($value) < 3) {
+                            $fail('School/HEI name must be at least 3 characters long.');
+                        }
+                    }
+                }
+            ],
             'transaction_type' => ['required', 'string', Rule::in([
                 'enrollment',
                 'payment',
@@ -60,6 +85,13 @@ class ClientSatisfactionSurveyController extends Controller
                 'consultation',
                 'other'
             ])],
+            'other_transaction_specify' => [
+                'nullable',
+                'string',
+                'max:255',
+                // Required only if transaction_type is 'other'
+                Rule::requiredIf($request->transaction_type === 'other')
+            ],
             'satisfaction_rating' => ['required', 'string', Rule::in([
                 'dissatisfied',
                 'neutral',
@@ -79,6 +111,8 @@ class ClientSatisfactionSurveyController extends Controller
             'school_hei.max' => 'School/HEI name cannot exceed 255 characters.',
             'transaction_type.required' => 'Please select a transaction type.',
             'transaction_type.in' => 'Please select a valid transaction type.',
+            'other_transaction_specify.required' => 'Please specify the type of transaction when selecting "Other".',
+            'other_transaction_specify.max' => 'Transaction specification cannot exceed 255 characters.',
             'satisfaction_rating.required' => 'Please select your satisfaction rating.',
             'satisfaction_rating.in' => 'Please select a valid satisfaction rating.',
             'reason.required' => 'Please provide your feedback.',
@@ -87,8 +121,23 @@ class ClientSatisfactionSurveyController extends Controller
         ]);
 
         try {
+            // Handle school_hei value - convert school ID to school name for storage
+            if ($validated['school_hei'] !== 'other' && strlen($validated['school_hei']) === 26) {
+                // This looks like a school ID (ULID), get the school name
+                $school = School::find($validated['school_hei']);
+                if ($school) {
+                    $validated['school_hei'] = $school->name;
+                }
+            }
+            // If it's not a school ID, it's already a manual entry (school name), keep as is
+
             // Create the survey response with default status
             $validated['status'] = 'submitted';
+
+            // If transaction_type is not 'other', clear the other_transaction_specify field
+            if ($validated['transaction_type'] !== 'other') {
+                $validated['other_transaction_specify'] = null;
+            }
 
             ClientSatisfactionSurvey::create($validated);
 
@@ -183,7 +232,27 @@ class ClientSatisfactionSurveyController extends Controller
             'transaction_date' => 'required|date|before_or_equal:today',
             'client_name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            'school_hei' => 'required|string|max:255',
+            'school_hei' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    if ($value === 'other') {
+                        return;
+                    }
+
+                    if (strlen($value) === 26) {
+                        $school = School::find($value);
+                        if (!$school) {
+                            $fail('The selected school is invalid.');
+                        }
+                    } else {
+                        if (strlen($value) < 3) {
+                            $fail('School/HEI name must be at least 3 characters long.');
+                        }
+                    }
+                }
+            ],
             'transaction_type' => ['required', 'string', Rule::in([
                 'enrollment',
                 'payment',
@@ -193,6 +262,7 @@ class ClientSatisfactionSurveyController extends Controller
                 'consultation',
                 'other'
             ])],
+            'other_transaction_specify' => 'nullable|string|max:255',
             'satisfaction_rating' => ['required', 'string', Rule::in([
                 'dissatisfied',
                 'neutral',
@@ -220,6 +290,8 @@ class ClientSatisfactionSurveyController extends Controller
             'school_hei.max' => 'School/HEI name cannot exceed 255 characters.',
             'transaction_type.required' => 'Please select a transaction type.',
             'transaction_type.in' => 'Please select a valid transaction type.',
+            'other_transaction_specify.required' => 'Please specify the type of transaction when selecting "Other".',
+            'other_transaction_specify.max' => 'Transaction specification cannot exceed 255 characters.',
             'satisfaction_rating.required' => 'Please select your satisfaction rating.',
             'satisfaction_rating.in' => 'Please select a valid satisfaction rating.',
             'reason.required' => 'Please provide your feedback.',

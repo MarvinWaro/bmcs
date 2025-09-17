@@ -20,7 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import Footer from '@/components/welcome-footer'; // Add this import
+import Footer from '@/components/welcome-footer';
 
 function formatDate(date: Date | undefined) {
     if (!date) {
@@ -40,12 +40,19 @@ function isValidDate(date: Date | undefined) {
     return !isNaN(date.getTime());
 }
 
+// Add School type
+type School = {
+    id: string;
+    name: string;
+};
+
 interface PageProps extends SharedData {
     errors: Record<string, string>;
+    schools: School[]; // Add schools prop
 }
 
 export default function Welcome() {
-    const { auth, errors } = usePage<PageProps>().props;
+    const { auth, errors, schools } = usePage<PageProps>().props; // Get schools from props
     const { appearance, updateAppearance } = useAppearance();
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,6 +61,7 @@ export default function Welcome() {
         clientName: '',
         schoolHEI: '',
         transactionType: '',
+        otherTransactionSpecify: '',
         email: '',
         satisfactionRating: '',
         reason: ''
@@ -95,18 +103,18 @@ export default function Welcome() {
     // Show validation errors as toast notifications
     useEffect(() => {
         if (Object.keys(errors).length > 0) {
-            console.log('Showing toast errors:', errors); // Debug log
+            console.log('Showing toast errors:', errors);
             Object.entries(errors).forEach(([field, message]) => {
                 if (field === 'general') {
                     toast.error(message);
                 } else {
-                    // Map Laravel field names to user-friendly field names
                     const fieldLabels: Record<string, string> = {
                         'transaction_date': 'Transaction Date',
                         'client_name': 'Client Name',
                         'email': 'Email Address',
                         'school_hei': 'School/HEI',
                         'transaction_type': 'Transaction Type',
+                        'other_transaction_specify': 'Transaction Specification',
                         'satisfaction_rating': 'Satisfaction Rating',
                         'reason': 'Feedback'
                     };
@@ -159,13 +167,13 @@ export default function Welcome() {
     const handleSubmit = () => {
         setIsSubmitting(true);
 
-        // Map form data to match Laravel controller expectations
         const submitData = {
             transaction_date: formData.transactionDate,
             client_name: formData.clientName,
             email: formData.email,
             school_hei: formData.schoolHEI,
             transaction_type: formData.transactionType,
+            other_transaction_specify: formData.otherTransactionSpecify,
             satisfaction_rating: formData.satisfactionRating,
             reason: formData.reason
         };
@@ -178,7 +186,6 @@ export default function Welcome() {
             onError: (errors) => {
                 console.error('Validation errors:', errors);
                 setIsSubmitting(false);
-                // Stay on current step to show errors
             }
         });
     };
@@ -189,6 +196,7 @@ export default function Welcome() {
             clientName: '',
             schoolHEI: '',
             transactionType: '',
+            otherTransactionSpecify: '',
             email: '',
             satisfactionRating: '',
             reason: ''
@@ -235,7 +243,20 @@ export default function Welcome() {
     };
 
     const canProceedToRating = () => {
-        return formData.transactionDate && formData.clientName && formData.email && formData.schoolHEI && formData.transactionType;
+        const hasBasicInfo = formData.transactionDate && formData.clientName && formData.email && formData.schoolHEI && formData.transactionType;
+
+        if (formData.transactionType === 'other') {
+            return hasBasicInfo && formData.otherTransactionSpecify.trim();
+        }
+
+        return hasBasicInfo;
+    };
+
+    // Get selected school name for display
+    const getSelectedSchoolName = () => {
+        if (!formData.schoolHEI) return '';
+        const selectedSchool = schools.find(school => school.id === formData.schoolHEI);
+        return selectedSchool ? selectedSchool.name : formData.schoolHEI;
     };
 
     const progressPercentage = (currentStep / 4) * 100;
@@ -249,7 +270,6 @@ export default function Welcome() {
             <div className="flex min-h-screen flex-col bg-[#FDFDFC] text-[#1b1b18] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]">
                 <header className="w-full mb-6 px-6 text-sm bg-[#FDFDFC]/80 dark:bg-[#0a0a0a]/80 backdrop-blur-sm shadow-sm border-b border-[#19140035]/20 dark:border-[#3E3E3A]/30 sticky top-0 z-50 py-4">
                     <nav className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-                        {/* Logos on the left */}
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-3">
                                 <img
@@ -268,9 +288,7 @@ export default function Welcome() {
                             </div>
                         </div>
 
-                        {/* Right side - Theme Toggle + Auth links */}
                         <div className="flex items-center gap-4">
-                            {/* Theme Toggle */}
                             <TooltipProvider delayDuration={0}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
@@ -290,7 +308,6 @@ export default function Welcome() {
                                 </Tooltip>
                             </TooltipProvider>
 
-                            {/* Auth Links */}
                             {auth.user && (
                                 <Link
                                     href={dashboard()}
@@ -307,7 +324,6 @@ export default function Welcome() {
                     <main className="flex w-full max-w-[600px] flex-col items-center">
                         <Card className="w-full">
                             <CardHeader>
-                                {/* Enhanced Progress Indicator */}
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between">
                                         <h1 className="text-2xl font-semibold">Client Satisfaction Survey</h1>
@@ -316,9 +332,7 @@ export default function Welcome() {
                                         </Badge>
                                     </div>
 
-                                    {/* Interactive Stepper */}
                                     <div className="flex items-center justify-between relative">
-                                        {/* Step 1 */}
                                         <div className="flex flex-col items-center space-y-2 relative z-10">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                                                 currentStep >= 1
@@ -341,7 +355,6 @@ export default function Welcome() {
                                             </div>
                                         </div>
 
-                                        {/* Step 2 */}
                                         <div className="flex flex-col items-center space-y-2 relative z-10">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                                                 currentStep >= 2
@@ -364,7 +377,6 @@ export default function Welcome() {
                                             </div>
                                         </div>
 
-                                        {/* Step 3 */}
                                         <div className="flex flex-col items-center space-y-2 relative z-10">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                                                 currentStep >= 3
@@ -387,7 +399,6 @@ export default function Welcome() {
                                             </div>
                                         </div>
 
-                                        {/* Step 4 */}
                                         <div className="flex flex-col items-center space-y-2 relative z-10">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                                                 currentStep >= 4
@@ -403,7 +414,6 @@ export default function Welcome() {
                                             </div>
                                         </div>
 
-                                        {/* Connection Lines */}
                                         <div className="absolute top-5 left-0 right-0 h-0.5 bg-muted-foreground/20 -z-10">
                                             <div
                                                 className="h-full bg-primary transition-all duration-500 ease-out"
@@ -412,10 +422,8 @@ export default function Welcome() {
                                         </div>
                                     </div>
 
-                                    {/* Progress Bar */}
                                     <Progress value={progressPercentage} className="w-full" />
 
-                                    {/* Step Description */}
                                     <p className="text-sm text-muted-foreground text-center">
                                         {currentStep === 1 ? 'Please provide the details of your transaction' :
                                          currentStep === 2 ? 'Rate your satisfaction with our service' :
@@ -484,9 +492,8 @@ export default function Welcome() {
                                                                     setDatePickerOpen(false);
                                                                 }}
                                                                 disabled={(date) => {
-                                                                    // Disable future dates (dates after today)
                                                                     const today = new Date();
-                                                                    today.setHours(23, 59, 59, 999); // Set to end of today
+                                                                    today.setHours(23, 59, 59, 999);
                                                                     return date > today;
                                                                 }}
                                                                 className="w-full"
@@ -518,22 +525,53 @@ export default function Welcome() {
                                                 />
                                             </div>
 
+                                            {/* Updated School/HEI field - now a dropdown */}
                                             <div className="space-y-2">
                                                 <Label htmlFor="schoolHEI">School/HEI <span className="text-red-500">*</span></Label>
-                                                <Input
-                                                    id="schoolHEI"
-                                                    type="text"
+                                                <Select
                                                     value={formData.schoolHEI}
-                                                    onChange={(e) => handleInputChange('schoolHEI', e.target.value)}
-                                                    placeholder="Enter your school or higher education institution"
-                                                />
+                                                    onValueChange={(value) => handleInputChange('schoolHEI', value)}
+                                                >
+                                                    <SelectTrigger id="schoolHEI">
+                                                        <SelectValue placeholder="Select your school or institution" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {schools.map((school) => (
+                                                            <SelectItem key={school.id} value={school.id}>
+                                                                {school.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                        {/* Option for schools not in the list */}
+                                                        <SelectItem value="other">Other (Not Listed)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
+
+                                            {/* Show manual input if "Other" is selected */}
+                                            {formData.schoolHEI === 'other' && (
+                                                <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                                    <Label htmlFor="schoolHEIManual">Please specify your school/institution <span className="text-red-500">*</span></Label>
+                                                    <Input
+                                                        id="schoolHEIManual"
+                                                        type="text"
+                                                        value={formData.schoolHEI === 'other' ? '' : formData.schoolHEI}
+                                                        onChange={(e) => handleInputChange('schoolHEI', e.target.value)}
+                                                        placeholder="Enter your school or higher education institution"
+                                                        className="bg-background"
+                                                    />
+                                                </div>
+                                            )}
 
                                             <div className="space-y-2">
                                                 <Label htmlFor="transactionType">Type of Transaction <span className="text-red-500">*</span></Label>
                                                 <Select
                                                     value={formData.transactionType}
-                                                    onValueChange={(value) => handleInputChange('transactionType', value)}
+                                                    onValueChange={(value) => {
+                                                        handleInputChange('transactionType', value);
+                                                        if (value !== 'other') {
+                                                            handleInputChange('otherTransactionSpecify', '');
+                                                        }
+                                                    }}
                                                 >
                                                     <SelectTrigger id="transactionType">
                                                         <SelectValue placeholder="Select transaction type" />
@@ -549,6 +587,20 @@ export default function Welcome() {
                                                     </SelectContent>
                                                 </Select>
                                             </div>
+
+                                            {formData.transactionType === 'other' && (
+                                                <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                                    <Label htmlFor="otherTransactionSpecify">Please specify the transaction type <span className="text-red-500">*</span></Label>
+                                                    <Input
+                                                        id="otherTransactionSpecify"
+                                                        type="text"
+                                                        value={formData.otherTransactionSpecify}
+                                                        onChange={(e) => handleInputChange('otherTransactionSpecify', e.target.value)}
+                                                        placeholder="Please describe the type of transaction"
+                                                        className="bg-background"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex justify-end">
@@ -669,11 +721,16 @@ export default function Welcome() {
                                                     )}
                                                     <div className="flex justify-between">
                                                         <span className="font-medium">Institution:</span>
-                                                        <span>{formData.schoolHEI}</span>
+                                                        <span>{getSelectedSchoolName()}</span>
                                                     </div>
                                                     <div className="flex justify-between">
                                                         <span className="font-medium">Transaction:</span>
-                                                        <span className="capitalize">{formData.transactionType}</span>
+                                                        <span className="capitalize text-right">
+                                                            {formData.transactionType === 'other' && formData.otherTransactionSpecify
+                                                                ? `Other: ${formData.otherTransactionSpecify}`
+                                                                : formData.transactionType
+                                                            }
+                                                        </span>
                                                     </div>
                                                     <div className="flex justify-between">
                                                         <span className="font-medium">Date:</span>
@@ -708,11 +765,9 @@ export default function Welcome() {
                     </main>
                 </div>
 
-                {/* Footer */}
                 <Footer />
             </div>
 
-            {/* Add Sonner Toaster with shadcn styling */}
             <Toaster
                 position="top-right"
                 expand={true}
