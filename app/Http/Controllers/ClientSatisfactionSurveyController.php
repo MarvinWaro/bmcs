@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClientSatisfactionSurvey;
+use App\Models\School;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rule;
@@ -51,7 +52,30 @@ class ClientSatisfactionSurveyController extends Controller
             'transaction_date' => 'required|date|before_or_equal:today',
             'client_name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            'school_hei' => 'required|string|max:255',
+            'school_hei' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    // If value is "other", it means manual entry will be provided
+                    if ($value === 'other') {
+                        return; // This will be handled by the manual input validation
+                    }
+
+                    // Check if it's a valid school ID (ULID format)
+                    if (strlen($value) === 26) { // ULID length
+                        $school = School::find($value);
+                        if (!$school) {
+                            $fail('The selected school is invalid.');
+                        }
+                    } else {
+                        // For manual entries, ensure minimum length
+                        if (strlen($value) < 3) {
+                            $fail('School/HEI name must be at least 3 characters long.');
+                        }
+                    }
+                }
+            ],
             'transaction_type' => ['required', 'string', Rule::in([
                 'enrollment',
                 'payment',
@@ -97,6 +121,16 @@ class ClientSatisfactionSurveyController extends Controller
         ]);
 
         try {
+            // Handle school_hei value - convert school ID to school name for storage
+            if ($validated['school_hei'] !== 'other' && strlen($validated['school_hei']) === 26) {
+                // This looks like a school ID (ULID), get the school name
+                $school = School::find($validated['school_hei']);
+                if ($school) {
+                    $validated['school_hei'] = $school->name;
+                }
+            }
+            // If it's not a school ID, it's already a manual entry (school name), keep as is
+
             // Create the survey response with default status
             $validated['status'] = 'submitted';
 
@@ -198,7 +232,27 @@ class ClientSatisfactionSurveyController extends Controller
             'transaction_date' => 'required|date|before_or_equal:today',
             'client_name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            'school_hei' => 'required|string|max:255',
+            'school_hei' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    if ($value === 'other') {
+                        return;
+                    }
+
+                    if (strlen($value) === 26) {
+                        $school = School::find($value);
+                        if (!$school) {
+                            $fail('The selected school is invalid.');
+                        }
+                    } else {
+                        if (strlen($value) < 3) {
+                            $fail('School/HEI name must be at least 3 characters long.');
+                        }
+                    }
+                }
+            ],
             'transaction_type' => ['required', 'string', Rule::in([
                 'enrollment',
                 'payment',

@@ -2,11 +2,17 @@
 
 use App\Http\Controllers\ClientSatisfactionSurveyController;
 use App\Http\Controllers\SchoolController;
+use App\Models\School; // Add this import
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// Update the home route to include schools data
 Route::get('/', function () {
-    return Inertia::render('welcome');
+    $schools = School::orderBy('name')->get(['id', 'name']);
+
+    return Inertia::render('welcome', [
+        'schools' => $schools
+    ]);
 })->name('home');
 
 // Client Satisfaction Survey Route (accessible to everyone)
