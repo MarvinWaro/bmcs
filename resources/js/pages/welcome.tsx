@@ -215,6 +215,7 @@ export default function Welcome() {
         setCurrentStep(1);
     };
 
+    // Updated ratings array - removed neutral option
     const ratings = [
         {
             id: 'dissatisfied',
@@ -222,13 +223,6 @@ export default function Welcome() {
             icon: '😞',
             className:
                 'hover:bg-red-50 border-red-200 hover:border-red-300 text-red-600 dark:hover:bg-red-900/20 dark:border-red-800 dark:hover:border-red-700 dark:text-red-400',
-        },
-        {
-            id: 'neutral',
-            label: 'Neutral',
-            icon: '😐',
-            className:
-                'hover:bg-yellow-50 border-yellow-200 hover:border-yellow-300 text-yellow-600 dark:hover:bg-yellow-900/20 dark:border-yellow-800 dark:hover:border-yellow-700 dark:text-yellow-400',
         },
         {
             id: 'satisfied',
@@ -245,8 +239,6 @@ export default function Welcome() {
                 return 'What made you satisfied with our service?';
             case 'dissatisfied':
                 return 'What made you dissatisfied with our service?';
-            case 'neutral':
-                return 'What could we have done better to improve your experience?';
             default:
                 return 'Please share your feedback:';
         }
@@ -415,7 +407,7 @@ export default function Welcome() {
                                             </div>
                                         </div>
 
-                                        <div className="absolute top-5 right-0 left-0 -z-10 h-0.5 bg-muted-foreground/20">
+                                        <div className="absolute left-0 right-0 top-5 -z-10 h-0.5 bg-muted-foreground/20">
                                             <div
                                                 className="h-full bg-primary transition-all duration-500 ease-out"
                                                 style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
@@ -471,7 +463,7 @@ export default function Welcome() {
                                                             <Button
                                                                 id="date-picker"
                                                                 variant="ghost"
-                                                                className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
+                                                                className="absolute right-2 top-1/2 size-6 -translate-y-1/2"
                                                             >
                                                                 <CalendarIcon className="size-3.5" />
                                                                 <span className="sr-only">Select date</span>
@@ -590,7 +582,7 @@ export default function Welcome() {
 
                                             {/* Show manual input if "Other" is selected */}
                                             {formData.schoolHEI === 'other' && (
-                                                <div className="space-y-2 duration-200 animate-in slide-in-from-top-2">
+                                                <div className="duration-200 animate-in slide-in-from-top-2 space-y-2">
                                                     <Label htmlFor="otherSchoolSpecify">
                                                         Please specify your school/institution <span className="text-red-500">*</span>
                                                     </Label>
@@ -634,7 +626,7 @@ export default function Welcome() {
                                             </div>
 
                                             {formData.transactionType === 'other' && (
-                                                <div className="space-y-2 duration-200 animate-in slide-in-from-top-2">
+                                                <div className="duration-200 animate-in slide-in-from-top-2 space-y-2">
                                                     <Label htmlFor="otherTransactionSpecify">
                                                         Please specify the transaction type <span className="text-red-500">*</span>
                                                     </Label>
@@ -658,7 +650,7 @@ export default function Welcome() {
                                     </div>
                                 )}
 
-                                {/* Step 2: Satisfaction Rating */}
+                                {/* Step 2: Satisfaction Rating - Updated to only show 2 options */}
                                 {currentStep === 2 && (
                                     <div className="space-y-6">
                                         <div>
@@ -666,7 +658,7 @@ export default function Welcome() {
                                             <p className="mb-6 text-muted-foreground">How satisfied are you with our service?</p>
                                         </div>
 
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             {ratings.map((rating) => (
                                                 <Button
                                                     key={rating.id}
