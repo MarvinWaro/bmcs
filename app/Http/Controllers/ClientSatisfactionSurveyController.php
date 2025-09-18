@@ -9,26 +9,85 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Carbon\Carbon;
 
 class ClientSatisfactionSurveyController extends Controller
 {
     /**
      * Display a listing of client satisfaction surveys for admin review
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $surveys = ClientSatisfactionSurvey::orderBy('created_at', 'desc')->get();
+        // Build the query with filters
+        $query = ClientSatisfactionSurvey::query();
+
+        // Apply filters based on request parameters
+        if ($request->filled('satisfaction_rating')) {
+            $query->bySatisfactionRating($request->satisfaction_rating);
+        }
+
+        if ($request->filled('school_hei') && $request->school_hei !== 'all') {
+            $query->bySchool($request->school_hei);
+        }
+
+        if ($request->filled('transaction_type') && $request->transaction_type !== 'all') {
+            $query->byTransactionType($request->transaction_type);
+        }
+
+        // Date range filtering
+        if ($request->filled('date_range')) {
+            switch ($request->date_range) {
+                case 'today':
+                    $query->whereDate('transaction_date', Carbon::today());
+                    break;
+                case 'this_week':
+                    $query->whereBetween('transaction_date', [
+                        Carbon::now()->startOfWeek(),
+                        Carbon::now()->endOfWeek()
+                    ]);
+                    break;
+                case 'this_month':
+                    $query->whereMonth('transaction_date', Carbon::now()->month)
+                        ->whereYear('transaction_date', Carbon::now()->year);
+                    break;
+                case 'this_year':
+                    $query->whereYear('transaction_date', Carbon::now()->year);
+                    break;
+                case 'last_30_days':
+                    $query->where('transaction_date', '>=', Carbon::now()->subDays(30));
+                    break;
+            }
+        }
+
+        // Custom date range
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->byDateRange($request->start_date, $request->end_date);
+        }
+
+        // Search functionality
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->byClientName($searchTerm)
+                ->orWhere('email', 'like', "%{$searchTerm}%")
+                ->orWhere('reason', 'like', "%{$searchTerm}%")
+                ->orWhere('school_hei', 'like', "%{$searchTerm}%")
+                ->orWhere('other_school_specify', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $surveys = $query->orderBy('created_at', 'desc')->get();
 
         // Transform the data to match the frontend expectations
         $reviews = $surveys->map(function ($survey) {
             return [
                 'id' => $survey->id,
-                'clientName' => $survey->full_name, // Use the accessor for full name
+                'clientName' => $survey->full_name,
                 'firstName' => $survey->first_name,
                 'middleName' => $survey->middle_name,
                 'lastName' => $survey->last_name,
-                'displayName' => $survey->display_name, // Last, First Middle format
-                'formalName' => $survey->formal_name, // First Middle Last format
+                'displayName' => $survey->display_name,
+                'formalName' => $survey->formal_name,
                 'email' => $survey->email,
                 'rating' => $this->mapSatisfactionToStars($survey->satisfaction_rating),
                 'comment' => $survey->reason,
@@ -45,8 +104,51 @@ class ClientSatisfactionSurveyController extends Controller
             ];
         });
 
+        // Get statistics for all surveys (unfiltered) and filtered surveys
+        $allSurveys = ClientSatisfactionSurvey::all();
+        $stats = [
+            'total' => $allSurveys->count(),
+            'satisfied' => $allSurveys->where('satisfaction_rating', 'satisfied')->count(),
+            'dissatisfied' => $allSurveys->where('satisfaction_rating', 'dissatisfied')->count(),
+            'filtered_total' => $reviews->count(),
+            'filtered_satisfied' => $surveys->where('satisfaction_rating', 'satisfied')->count(),
+            'filtered_dissatisfied' => $surveys->where('satisfaction_rating', 'dissatisfied')->count(),
+            'today' => $allSurveys->filter(function($survey) {
+                return $survey->transaction_date->isToday();
+            })->count(),
+            'this_month' => $allSurveys->filter(function($survey) {
+                return $survey->transaction_date->isCurrentMonth();
+            })->count(),
+        ];
+
+        // Get schools for filter dropdown
+        $schools = School::orderBy('name')->get(['id', 'name']);
+
+        // Get unique transaction types from surveys
+        $transactionTypes = [
+            ['value' => 'enrollment', 'label' => 'Enrollment'],
+            ['value' => 'payment', 'label' => 'Payment'],
+            ['value' => 'transcript', 'label' => 'Transcript Request'],
+            ['value' => 'certification', 'label' => 'Certification'],
+            ['value' => 'scholarship', 'label' => 'Scholarship Application'],
+            ['value' => 'consultation', 'label' => 'Consultation'],
+            ['value' => 'other', 'label' => 'Other'],
+        ];
+
         return Inertia::render('reviews/index', [
-            'reviews' => $reviews
+            'reviews' => $reviews,
+            'schools' => $schools,
+            'transactionTypes' => $transactionTypes,
+            'stats' => $stats,
+            'filters' => [
+                'satisfaction_rating' => $request->satisfaction_rating,
+                'school_hei' => $request->school_hei,
+                'transaction_type' => $request->transaction_type,
+                'date_range' => $request->date_range,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                'search' => $request->search,
+            ]
         ]);
     }
 
@@ -88,7 +190,7 @@ class ClientSatisfactionSurveyController extends Controller
             ],
             'satisfaction_rating' => ['required', 'string', Rule::in([
                 'dissatisfied',
-                'satisfied' // Removed 'neutral'
+                'satisfied'
             ])],
             'reason' => 'required|string|min:10|max:2000',
         ], [
@@ -196,7 +298,7 @@ class ClientSatisfactionSurveyController extends Controller
     {
         return match($satisfaction) {
             'dissatisfied' => 2,
-            'satisfied' => 5, // Removed neutral case
+            'satisfied' => 5,
             default => 3,
         };
     }
@@ -239,7 +341,7 @@ class ClientSatisfactionSurveyController extends Controller
             ],
             'satisfaction_rating' => ['required', 'string', Rule::in([
                 'dissatisfied',
-                'satisfied' // Removed 'neutral'
+                'satisfied'
             ])],
             'reason' => 'required|string|min:10|max:2000',
         ];

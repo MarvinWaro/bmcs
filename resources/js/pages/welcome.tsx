@@ -768,8 +768,8 @@ export default function Welcome() {
                                                                 formData.satisfactionRating === 'satisfied'
                                                                     ? 'default'
                                                                     : formData.satisfactionRating === 'dissatisfied'
-                                                                      ? 'destructive'
-                                                                      : 'secondary'
+                                                                    ? 'destructive'
+                                                                    : 'secondary'
                                                             }
                                                         >
                                                             {formData.satisfactionRating}
