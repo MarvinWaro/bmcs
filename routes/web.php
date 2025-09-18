@@ -1,8 +1,9 @@
 <?php
 
 use App\Http\Controllers\ClientSatisfactionSurveyController;
+use App\Http\Controllers\DashboardController; // Add this import
 use App\Http\Controllers\SchoolController;
-use App\Models\School; // Add this import
+use App\Models\School;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -20,9 +21,8 @@ Route::post('/client-satisfaction-survey', [ClientSatisfactionSurveyController::
     ->name('client-satisfaction-survey.store');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    // Updated dashboard route to use DashboardController
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Admin routes for client reviews management
     Route::get('/client-reviews', [ClientSatisfactionSurveyController::class, 'index'])

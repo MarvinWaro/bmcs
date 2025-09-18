@@ -34,27 +34,49 @@ class ClientSatisfactionSurveyController extends Controller
             $query->byTransactionType($request->transaction_type);
         }
 
-        // Date range filtering
+        // Date range filtering with timezone awareness
         if ($request->filled('date_range')) {
             switch ($request->date_range) {
                 case 'today':
-                    $query->whereDate('transaction_date', Carbon::today());
+                    // Show surveys submitted today OR with transaction_date today
+                    $query->where(function($q) {
+                        $q->whereDate('transaction_date', Carbon::today())
+                          ->orWhereDate('created_at', Carbon::today());
+                    });
                     break;
                 case 'this_week':
-                    $query->whereBetween('transaction_date', [
-                        Carbon::now()->startOfWeek(),
-                        Carbon::now()->endOfWeek()
-                    ]);
+                    $query->where(function($q) {
+                        $q->whereBetween('transaction_date', [
+                            Carbon::now()->startOfWeek(),
+                            Carbon::now()->endOfWeek()
+                        ])->orWhereBetween('created_at', [
+                            Carbon::now()->startOfWeek(),
+                            Carbon::now()->endOfWeek()
+                        ]);
+                    });
                     break;
                 case 'this_month':
-                    $query->whereMonth('transaction_date', Carbon::now()->month)
-                        ->whereYear('transaction_date', Carbon::now()->year);
+                    $query->where(function($q) {
+                        $q->where(function($subQ) {
+                            $subQ->whereMonth('transaction_date', Carbon::now()->month)
+                                 ->whereYear('transaction_date', Carbon::now()->year);
+                        })->orWhere(function($subQ) {
+                            $subQ->whereMonth('created_at', Carbon::now()->month)
+                                 ->whereYear('created_at', Carbon::now()->year);
+                        });
+                    });
                     break;
                 case 'this_year':
-                    $query->whereYear('transaction_date', Carbon::now()->year);
+                    $query->where(function($q) {
+                        $q->whereYear('transaction_date', Carbon::now()->year)
+                          ->orWhereYear('created_at', Carbon::now()->year);
+                    });
                     break;
                 case 'last_30_days':
-                    $query->where('transaction_date', '>=', Carbon::now()->subDays(30));
+                    $query->where(function($q) {
+                        $q->where('transaction_date', '>=', Carbon::now()->subDays(30))
+                          ->orWhere('created_at', '>=', Carbon::now()->subDays(30));
+                    });
                     break;
             }
         }
@@ -78,7 +100,7 @@ class ClientSatisfactionSurveyController extends Controller
 
         $surveys = $query->orderBy('created_at', 'desc')->get();
 
-        // Transform the data to match the frontend expectations
+        // Transform the data to match the frontend expectations with timezone conversion
         $reviews = $surveys->map(function ($survey) {
             return [
                 'id' => $survey->id,
@@ -91,7 +113,7 @@ class ClientSatisfactionSurveyController extends Controller
                 'email' => $survey->email,
                 'rating' => $this->mapSatisfactionToStars($survey->satisfaction_rating),
                 'comment' => $survey->reason,
-                'date' => $survey->transaction_date->format('Y-m-d'),
+                'date' => $survey->transaction_date->setTimezone(config('app.timezone'))->format('Y-m-d'),
                 'status' => $survey->status ?? 'submitted',
                 'loanType' => $survey->full_transaction_type,
                 'schoolHei' => $survey->full_school_name,
@@ -99,12 +121,12 @@ class ClientSatisfactionSurveyController extends Controller
                 'transactionType' => $survey->transaction_type,
                 'otherTransactionSpecify' => $survey->other_transaction_specify,
                 'otherSchoolSpecify' => $survey->other_school_specify,
-                'submittedAt' => $survey->created_at->format('Y-m-d H:i:s'),
+                'submittedAt' => $survey->created_at->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s'),
                 'adminNotes' => $survey->admin_notes,
             ];
         });
 
-        // Get statistics for all surveys (unfiltered) and filtered surveys
+        // Get statistics for all surveys (unfiltered) and filtered surveys with timezone awareness
         $allSurveys = ClientSatisfactionSurvey::all();
         $stats = [
             'total' => $allSurveys->count(),
@@ -114,10 +136,10 @@ class ClientSatisfactionSurveyController extends Controller
             'filtered_satisfied' => $surveys->where('satisfaction_rating', 'satisfied')->count(),
             'filtered_dissatisfied' => $surveys->where('satisfaction_rating', 'dissatisfied')->count(),
             'today' => $allSurveys->filter(function($survey) {
-                return $survey->transaction_date->isToday();
+                return $survey->created_at->setTimezone(config('app.timezone'))->isToday();
             })->count(),
             'this_month' => $allSurveys->filter(function($survey) {
-                return $survey->transaction_date->isCurrentMonth();
+                return $survey->created_at->setTimezone(config('app.timezone'))->isCurrentMonth();
             })->count(),
         ];
 

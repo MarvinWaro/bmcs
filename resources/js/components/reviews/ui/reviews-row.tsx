@@ -63,6 +63,34 @@ export default function ReviewRowTemplate({ row, index }: ReviewRowTemplateProps
         }
     };
 
+    // Helper function to format date consistently
+    const formatDate = (dateString: string) => {
+        try {
+            return new Date(dateString).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (error) {
+            return dateString; // Fallback to original string if parsing fails
+        }
+    };
+
+    // Helper function to format submitted date (extract date part only)
+    const formatSubmittedDate = (dateTimeString: string) => {
+        try {
+            // Extract just the date part (YYYY-MM-DD) from datetime string
+            const dateOnly = dateTimeString.split(' ')[0];
+            return new Date(dateOnly).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (error) {
+            return dateTimeString.split(' ')[0]; // Fallback to date part only
+        }
+    };
+
     // Check if comment is long enough to truncate
     const isCommentLong = row.comment.length > 100;
     const displayComment = isExpanded ? row.comment : row.comment.slice(0, 100);
@@ -146,7 +174,7 @@ export default function ReviewRowTemplate({ row, index }: ReviewRowTemplateProps
                                                     </div>
                                                     <div className="pt-2 border-t">
                                                         <div className="text-xs text-muted-foreground">
-                                                            {row.loanType} • {new Date(row.submittedAt).toLocaleDateString()}
+                                                            {row.loanType} • {formatSubmittedDate(row.submittedAt)}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -172,7 +200,7 @@ export default function ReviewRowTemplate({ row, index }: ReviewRowTemplateProps
                         <div className="text-left space-y-1">
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                 <Calendar className="h-3 w-3" />
-                                <span className="whitespace-nowrap">{new Date(row.date).toLocaleDateString()}</span>
+                                <span className="whitespace-nowrap">{formatDate(row.date)}</span>
                             </div>
                             <div className="text-xs text-muted-foreground">
                                 <div className="truncate max-w-full" title={row.schoolHei}>
@@ -180,7 +208,7 @@ export default function ReviewRowTemplate({ row, index }: ReviewRowTemplateProps
                                 </div>
                             </div>
                             <div className="text-xs text-muted-foreground/70">
-                                Submitted: {new Date(row.submittedAt).toLocaleDateString()}
+                                Submitted: {formatSubmittedDate(row.submittedAt)}
                             </div>
                         </div>
                     </div>
@@ -189,4 +217,3 @@ export default function ReviewRowTemplate({ row, index }: ReviewRowTemplateProps
         </>
     );
 }
-
