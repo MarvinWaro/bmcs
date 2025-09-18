@@ -35,6 +35,14 @@ function isValidDate(date: Date | undefined) {
     return !isNaN(date.getTime());
 }
 
+// FIXED: Helper function to format date properly without timezone conversion
+function formatDateForSubmission(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 // Add School type
 type School = {
     id: string;
@@ -148,20 +156,31 @@ export default function Welcome() {
         setCurrentStep(3);
     };
 
+    // FIXED: Handle date changes properly without timezone conversion
     const handleDateChange = (date: Date | undefined) => {
         setSelectedDate(date);
-        const formattedDate = date ? date.toISOString().split('T')[0] : '';
-        setDateValue(formatDate(date));
-        handleInputChange('transactionDate', formattedDate);
+        const formattedDateDisplay = date ? formatDate(date) : '';
+        const formattedDateSubmission = date ? formatDateForSubmission(date) : '';
+
+        setDateValue(formattedDateDisplay);
+        handleInputChange('transactionDate', formattedDateSubmission);
     };
 
+    // FIXED: Handle manual date input properly
     const handleDateInputChange = (inputValue: string) => {
         setDateValue(inputValue);
-        const date = new Date(inputValue);
-        if (isValidDate(date)) {
-            setSelectedDate(date);
-            setMonth(date);
-            handleInputChange('transactionDate', date.toISOString().split('T')[0]);
+
+        // Try to parse the input as a date
+        const parsedDate = new Date(inputValue);
+        if (isValidDate(parsedDate)) {
+            setSelectedDate(parsedDate);
+            setMonth(parsedDate);
+            // Use our helper function to format for submission
+            handleInputChange('transactionDate', formatDateForSubmission(parsedDate));
+        } else {
+            // If it's not a valid date, just update the form field
+            // This allows for partial typing
+            handleInputChange('transactionDate', inputValue);
         }
     };
 

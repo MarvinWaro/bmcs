@@ -34,48 +34,51 @@ class ClientSatisfactionSurveyController extends Controller
             $query->byTransactionType($request->transaction_type);
         }
 
-        // Date range filtering with timezone awareness
+        // Date range filtering - use app timezone for consistency
         if ($request->filled('date_range')) {
+            $appTimezone = config('app.timezone');
+
             switch ($request->date_range) {
                 case 'today':
-                    // Show surveys submitted today OR with transaction_date today
-                    $query->where(function($q) {
-                        $q->whereDate('transaction_date', Carbon::today())
-                          ->orWhereDate('created_at', Carbon::today());
+                    $today = Carbon::now($appTimezone)->format('Y-m-d');
+                    $query->where(function($q) use ($today) {
+                        $q->whereDate('transaction_date', $today)
+                          ->orWhereDate('created_at', $today);
                     });
                     break;
                 case 'this_week':
-                    $query->where(function($q) {
-                        $q->whereBetween('transaction_date', [
-                            Carbon::now()->startOfWeek(),
-                            Carbon::now()->endOfWeek()
-                        ])->orWhereBetween('created_at', [
-                            Carbon::now()->startOfWeek(),
-                            Carbon::now()->endOfWeek()
-                        ]);
+                    $startOfWeek = Carbon::now($appTimezone)->startOfWeek()->format('Y-m-d');
+                    $endOfWeek = Carbon::now($appTimezone)->endOfWeek()->format('Y-m-d');
+                    $query->where(function($q) use ($startOfWeek, $endOfWeek) {
+                        $q->whereBetween('transaction_date', [$startOfWeek, $endOfWeek])
+                          ->orWhereBetween('created_at', [$startOfWeek, $endOfWeek]);
                     });
                     break;
                 case 'this_month':
-                    $query->where(function($q) {
-                        $q->where(function($subQ) {
-                            $subQ->whereMonth('transaction_date', Carbon::now()->month)
-                                 ->whereYear('transaction_date', Carbon::now()->year);
-                        })->orWhere(function($subQ) {
-                            $subQ->whereMonth('created_at', Carbon::now()->month)
-                                 ->whereYear('created_at', Carbon::now()->year);
+                    $month = Carbon::now($appTimezone)->month;
+                    $year = Carbon::now($appTimezone)->year;
+                    $query->where(function($q) use ($month, $year) {
+                        $q->where(function($subQ) use ($month, $year) {
+                            $subQ->whereMonth('transaction_date', $month)
+                                 ->whereYear('transaction_date', $year);
+                        })->orWhere(function($subQ) use ($month, $year) {
+                            $subQ->whereMonth('created_at', $month)
+                                 ->whereYear('created_at', $year);
                         });
                     });
                     break;
                 case 'this_year':
-                    $query->where(function($q) {
-                        $q->whereYear('transaction_date', Carbon::now()->year)
-                          ->orWhereYear('created_at', Carbon::now()->year);
+                    $year = Carbon::now($appTimezone)->year;
+                    $query->where(function($q) use ($year) {
+                        $q->whereYear('transaction_date', $year)
+                          ->orWhereYear('created_at', $year);
                     });
                     break;
                 case 'last_30_days':
-                    $query->where(function($q) {
-                        $q->where('transaction_date', '>=', Carbon::now()->subDays(30))
-                          ->orWhere('created_at', '>=', Carbon::now()->subDays(30));
+                    $thirtyDaysAgo = Carbon::now($appTimezone)->subDays(30)->format('Y-m-d');
+                    $query->where(function($q) use ($thirtyDaysAgo) {
+                        $q->where('transaction_date', '>=', $thirtyDaysAgo)
+                          ->orWhere('created_at', '>=', $thirtyDaysAgo);
                     });
                     break;
             }
@@ -100,7 +103,7 @@ class ClientSatisfactionSurveyController extends Controller
 
         $surveys = $query->orderBy('created_at', 'desc')->get();
 
-        // Transform the data to match the frontend expectations with timezone conversion
+        // Transform the data - ensure dates are displayed correctly
         $reviews = $surveys->map(function ($survey) {
             return [
                 'id' => $survey->id,
@@ -113,7 +116,7 @@ class ClientSatisfactionSurveyController extends Controller
                 'email' => $survey->email,
                 'rating' => $this->mapSatisfactionToStars($survey->satisfaction_rating),
                 'comment' => $survey->reason,
-                'date' => $survey->transaction_date->setTimezone(config('app.timezone'))->format('Y-m-d'),
+                'date' => $survey->transaction_date->format('Y-m-d'), // This should now display correctly
                 'status' => $survey->status ?? 'submitted',
                 'loanType' => $survey->full_transaction_type,
                 'schoolHei' => $survey->full_school_name,
@@ -126,7 +129,7 @@ class ClientSatisfactionSurveyController extends Controller
             ];
         });
 
-        // Get statistics for all surveys (unfiltered) and filtered surveys with timezone awareness
+        // Get statistics
         $allSurveys = ClientSatisfactionSurvey::all();
         $stats = [
             'total' => $allSurveys->count(),
@@ -243,6 +246,14 @@ class ClientSatisfactionSurveyController extends Controller
         ]);
 
         try {
+            // FIXED: Handle date properly to avoid timezone issues
+            // Parse the date string and ensure it's stored as the exact date provided
+            if ($validated['transaction_date']) {
+                // Create a Carbon instance from the date string in the app timezone
+                $date = Carbon::createFromFormat('Y-m-d', $validated['transaction_date'], config('app.timezone'));
+                $validated['transaction_date'] = $date->format('Y-m-d');
+            }
+
             // Handle school_hei value - convert school ID to school name for storage
             if ($validated['school_hei'] !== 'other') {
                 $school = School::find($validated['school_hei']);

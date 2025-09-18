@@ -28,7 +28,7 @@ class ClientSatisfactionSurvey extends Model
     ];
 
     protected $casts = [
-        'transaction_date' => 'date',
+        'transaction_date' => 'date:Y-m-d',
     ];
 
     // Accessor for full client name
