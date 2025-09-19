@@ -6,6 +6,7 @@ import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, usePage } from '@inertiajs/react';
+import * as React from 'react';
 import {
     Area,
     AreaChart,
@@ -44,7 +45,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-// Grayscale color palette
+// Grayscale color palette for UI elements
 const GRAYSCALE_COLORS = {
     primary: '#374151',      // gray-700
     secondary: '#6B7280',    // gray-500
@@ -55,6 +56,41 @@ const GRAYSCALE_COLORS = {
     dark: '#1F2937',         // gray-800
     darker: '#111827',       // gray-900
 };
+
+// Colorful palette for chart data
+const CHART_COLORS = {
+    satisfied: '#10B981',       // emerald-500 (green)
+    dissatisfied: '#EF4444',   // red-500
+    primary: '#3B82F6',        // blue-500
+    secondary: '#8B5CF6',      // violet-500
+    accent: '#F59E0B',         // amber-500
+    success: '#10B981',        // emerald-500
+    warning: '#F59E0B',        // amber-500
+    danger: '#EF4444',         // red-500
+    info: '#06B6D4',           // cyan-500
+    purple: '#8B5CF6',         // violet-500
+    pink: '#EC4899',           // pink-500
+    indigo: '#6366F1',         // indigo-500
+    teal: '#14B8A6',           // teal-500
+    orange: '#F97316',         // orange-500
+    lime: '#84CC16',           // lime-500
+};
+
+// Vibrant colors for pie chart
+const PIE_COLORS = [
+    CHART_COLORS.primary,      // blue
+    CHART_COLORS.secondary,    // violet
+    CHART_COLORS.success,      // emerald
+    CHART_COLORS.warning,      // amber
+    CHART_COLORS.danger,       // red
+    CHART_COLORS.info,         // cyan
+    CHART_COLORS.purple,       // violet
+    CHART_COLORS.pink,         // pink
+    CHART_COLORS.indigo,       // indigo
+    CHART_COLORS.teal,         // teal
+    CHART_COLORS.orange,       // orange
+    CHART_COLORS.lime,         // lime
+];
 
 type Analytics = {
     metrics: {
@@ -123,6 +159,10 @@ export default function Dashboard() {
     const { props } = usePage<PageProps>();
     const { analytics, filter_options, current_filters } = props;
 
+    // State for chart time range filters
+    const [dailyTimeRange, setDailyTimeRange] = React.useState("30d");
+    const [monthlyTimeRange, setMonthlyTimeRange] = React.useState("6m");
+
     const updateFilters = (newFilters: Partial<CurrentFilters>) => {
         const filters = { ...current_filters, ...newFilters };
 
@@ -145,19 +185,37 @@ export default function Dashboard() {
         .sort((a, b) => b.value - a.value)
         .slice(0, 10);
 
-    // Generate colors for pie chart
-    const pieColors = [
-        GRAYSCALE_COLORS.primary,
-        GRAYSCALE_COLORS.secondary,
-        GRAYSCALE_COLORS.tertiary,
-        GRAYSCALE_COLORS.light,
-        GRAYSCALE_COLORS.dark,
-        '#8B5CF6', // Add some variety while keeping it professional
-        '#06B6D4',
-        '#10B981',
-        '#F59E0B',
-        '#EF4444'
-    ];
+    // Filter daily trend data based on time range
+    const getFilteredDailyData = (timeRange: string) => {
+        if (!analytics.daily_trend || analytics.daily_trend.length === 0) return [];
+
+        const sortedData = analytics.daily_trend.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const latestDate = new Date(sortedData[sortedData.length - 1].date);
+
+        let daysToInclude = 30;
+        if (timeRange === "7d") daysToInclude = 7;
+        else if (timeRange === "14d") daysToInclude = 14;
+        else if (timeRange === "90d") daysToInclude = 90;
+
+        const cutoffDate = new Date(latestDate);
+        cutoffDate.setDate(cutoffDate.getDate() - daysToInclude);
+
+        return sortedData.filter(item => new Date(item.date) >= cutoffDate);
+    };
+
+    // Filter monthly trend data based on time range
+    const getFilteredMonthlyData = (timeRange: string) => {
+        if (!analytics.monthly_trend || analytics.monthly_trend.length === 0) return [];
+
+        let monthsToInclude = 6;
+        if (timeRange === "3m") monthsToInclude = 3;
+        else if (timeRange === "12m") monthsToInclude = 12;
+
+        return analytics.monthly_trend.slice(-monthsToInclude);
+    };
+
+    const filteredDailyData = getFilteredDailyData(dailyTimeRange);
+    const filteredMonthlyData = getFilteredMonthlyData(monthlyTimeRange);
 
     // Custom tooltip for charts
     const CustomTooltip = ({ active, payload, label }: any) => {
@@ -184,8 +242,12 @@ export default function Dashboard() {
                 <div className="rounded-lg border border-border bg-background p-3 shadow-md">
                     <p className="text-sm font-medium">{data.name}</p>
                     <p className="text-sm">Responses: {data.value}</p>
-                    <p className="text-sm text-green-600">Satisfied: {data.satisfied}</p>
-                    <p className="text-sm text-red-600">Dissatisfied: {data.dissatisfied}</p>
+                    <p className="text-sm" style={{ color: CHART_COLORS.satisfied }}>
+                        Satisfied: {data.satisfied}
+                    </p>
+                    <p className="text-sm" style={{ color: CHART_COLORS.dissatisfied }}>
+                        Dissatisfied: {data.dissatisfied}
+                    </p>
                 </div>
             );
         }
@@ -353,21 +415,43 @@ export default function Dashboard() {
                                 Daily Satisfaction Trend
                             </CardTitle>
                             <CardDescription>
-                                Showing satisfaction responses over the last 30 days
+                                Showing satisfaction responses over the selected period
                             </CardDescription>
                         </div>
+                        <Select value={dailyTimeRange} onValueChange={setDailyTimeRange}>
+                            <SelectTrigger
+                                className="w-[160px] rounded-lg sm:ml-auto"
+                                aria-label="Select time range"
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                                <SelectItem value="7d" className="rounded-lg">
+                                    Last 7 days
+                                </SelectItem>
+                                <SelectItem value="14d" className="rounded-lg">
+                                    Last 14 days
+                                </SelectItem>
+                                <SelectItem value="30d" className="rounded-lg">
+                                    Last 30 days
+                                </SelectItem>
+                                <SelectItem value="90d" className="rounded-lg">
+                                    Last 90 days
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                     </CardHeader>
                     <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
                         <ResponsiveContainer width="100%" height={400}>
-                            <AreaChart data={analytics.daily_trend}>
+                            <AreaChart data={filteredDailyData}>
                                 <defs>
                                     <linearGradient id="fillSatisfied" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={GRAYSCALE_COLORS.primary} stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor={GRAYSCALE_COLORS.primary} stopOpacity={0.1} />
+                                        <stop offset="5%" stopColor={CHART_COLORS.satisfied} stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor={CHART_COLORS.satisfied} stopOpacity={0.1} />
                                     </linearGradient>
                                     <linearGradient id="fillDissatisfied" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={GRAYSCALE_COLORS.tertiary} stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor={GRAYSCALE_COLORS.tertiary} stopOpacity={0.1} />
+                                        <stop offset="5%" stopColor={CHART_COLORS.dissatisfied} stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor={CHART_COLORS.dissatisfied} stopOpacity={0.1} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid vertical={false} stroke={GRAYSCALE_COLORS.lighter} />
@@ -414,15 +498,17 @@ export default function Dashboard() {
                                     dataKey="satisfied"
                                     type="natural"
                                     fill="url(#fillSatisfied)"
-                                    stroke={GRAYSCALE_COLORS.primary}
-                                    stackId="a"
+                                    stroke={CHART_COLORS.satisfied}
+                                    strokeWidth={2}
+                                    fillOpacity={0.6}
                                 />
                                 <Area
                                     dataKey="dissatisfied"
                                     type="natural"
                                     fill="url(#fillDissatisfied)"
-                                    stroke={GRAYSCALE_COLORS.tertiary}
-                                    stackId="a"
+                                    stroke={CHART_COLORS.dissatisfied}
+                                    strokeWidth={2}
+                                    fillOpacity={0.6}
                                 />
                                 <Legend />
                             </AreaChart>
@@ -432,18 +518,39 @@ export default function Dashboard() {
 
                 {/* Monthly Satisfaction Rate Chart */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            Monthly Satisfaction Rate
-                        </CardTitle>
-                        <CardDescription>
-                            Satisfaction percentage trend over the last 6 months
-                        </CardDescription>
+                    <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
+                        <div className="grid flex-1 gap-1">
+                            <CardTitle className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                Monthly Satisfaction Rate
+                            </CardTitle>
+                            <CardDescription>
+                                Satisfaction percentage trend over the selected period
+                            </CardDescription>
+                        </div>
+                        <Select value={monthlyTimeRange} onValueChange={setMonthlyTimeRange}>
+                            <SelectTrigger
+                                className="w-[160px] rounded-lg sm:ml-auto"
+                                aria-label="Select time range"
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                                <SelectItem value="3m" className="rounded-lg">
+                                    Last 3 months
+                                </SelectItem>
+                                <SelectItem value="6m" className="rounded-lg">
+                                    Last 6 months
+                                </SelectItem>
+                                <SelectItem value="12m" className="rounded-lg">
+                                    Last 12 months
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                     </CardHeader>
                     <CardContent>
                         <ResponsiveContainer width="100%" height={300}>
-                            <LineChart data={analytics.monthly_trend}>
+                            <LineChart data={filteredMonthlyData}>
                                 <CartesianGrid vertical={false} stroke={GRAYSCALE_COLORS.lighter} />
                                 <XAxis
                                     dataKey="month"
@@ -462,10 +569,10 @@ export default function Dashboard() {
                                 <Line
                                     type="monotone"
                                     dataKey="satisfaction_rate"
-                                    stroke={GRAYSCALE_COLORS.primary}
+                                    stroke={CHART_COLORS.primary}
                                     strokeWidth={3}
-                                    dot={{ fill: GRAYSCALE_COLORS.primary, strokeWidth: 2, r: 4 }}
-                                    activeDot={{ r: 6, stroke: GRAYSCALE_COLORS.primary, strokeWidth: 2 }}
+                                    dot={{ fill: CHART_COLORS.primary, strokeWidth: 2, r: 4 }}
+                                    activeDot={{ r: 6, stroke: CHART_COLORS.primary, strokeWidth: 2 }}
                                 />
                             </LineChart>
                         </ResponsiveContainer>
@@ -500,7 +607,7 @@ export default function Dashboard() {
                                         label={({ name, value }) => `${name}: ${value}`}
                                     >
                                         {top10Schools.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+                                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                                         ))}
                                     </Pie>
                                     <Tooltip content={<PieTooltip />} />
@@ -544,13 +651,13 @@ export default function Dashboard() {
                                     <Bar
                                         dataKey="satisfied"
                                         stackId="a"
-                                        fill={GRAYSCALE_COLORS.primary}
+                                        fill={CHART_COLORS.satisfied}
                                         name="Satisfied"
                                     />
                                     <Bar
                                         dataKey="dissatisfied"
                                         stackId="a"
-                                        fill={GRAYSCALE_COLORS.tertiary}
+                                        fill={CHART_COLORS.dissatisfied}
                                         name="Dissatisfied"
                                     />
                                     <Legend />

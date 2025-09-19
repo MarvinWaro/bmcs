@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Menu, Moon, Sun, Monitor, Star, GraduationCap, School } from 'lucide-react';
+import { LayoutGrid, Menu, Moon, Sun, Monitor, Star, GraduationCap, School, FileText } from 'lucide-react';
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 
@@ -33,6 +33,11 @@ const adminNavItems: NavItem[] = [
         title: 'Schools / Institutions',
         href: '/schools',
         icon: School,
+    },
+    {
+        title: 'List of Memorandum',
+        href: '/memorandum',
+        icon: FileText,
     },
 ];
 
