@@ -101,10 +101,20 @@ class ClientSatisfactionSurveyController extends Controller
             });
         }
 
-        $surveys = $query->orderBy('created_at', 'desc')->get();
+        // Get per_page from request or default to 10
+        $perPage = $request->get('per_page', 10);
+        $validPerPageValues = [5, 10, 15, 20, 25, 50];
+        if (!in_array($perPage, $validPerPageValues)) {
+            $perPage = 10;
+        }
+
+        // Add pagination to the query
+        $surveys = $query->orderBy('created_at', 'desc')
+            ->paginate($perPage)
+            ->withQueryString(); // This preserves the current query parameters
 
         // Transform the data - ensure dates are displayed correctly
-        $reviews = $surveys->map(function ($survey) {
+        $reviews = $surveys->getCollection()->map(function ($survey) {
             return [
                 'id' => $survey->id,
                 'clientName' => $survey->full_name,
@@ -116,7 +126,7 @@ class ClientSatisfactionSurveyController extends Controller
                 'email' => $survey->email,
                 'rating' => $this->mapSatisfactionToStars($survey->satisfaction_rating),
                 'comment' => $survey->reason,
-                'date' => $survey->transaction_date->format('Y-m-d'), // This should now display correctly
+                'date' => $survey->transaction_date->format('Y-m-d'),
                 'status' => $survey->status ?? 'submitted',
                 'loanType' => $survey->full_transaction_type,
                 'schoolHei' => $survey->full_school_name,
@@ -129,15 +139,95 @@ class ClientSatisfactionSurveyController extends Controller
             ];
         });
 
-        // Get statistics
+        // Update the collection with transformed data
+        $surveys->setCollection($reviews);
+
+        // Get statistics (for all surveys, not just paginated)
         $allSurveys = ClientSatisfactionSurvey::all();
+
+        // Get filtered count for stats (without pagination)
+        $filteredQuery = ClientSatisfactionSurvey::query();
+
+        // Apply the same filters to get accurate filtered stats
+        if ($request->filled('satisfaction_rating')) {
+            $filteredQuery->bySatisfactionRating($request->satisfaction_rating);
+        }
+        if ($request->filled('school_hei') && $request->school_hei !== 'all') {
+            $filteredQuery->bySchool($request->school_hei);
+        }
+        if ($request->filled('transaction_type') && $request->transaction_type !== 'all') {
+            $filteredQuery->byTransactionType($request->transaction_type);
+        }
+        if ($request->filled('date_range')) {
+            $appTimezone = config('app.timezone');
+            switch ($request->date_range) {
+                case 'today':
+                    $today = Carbon::now($appTimezone)->format('Y-m-d');
+                    $filteredQuery->where(function($q) use ($today) {
+                        $q->whereDate('transaction_date', $today)
+                          ->orWhereDate('created_at', $today);
+                    });
+                    break;
+                case 'this_week':
+                    $startOfWeek = Carbon::now($appTimezone)->startOfWeek()->format('Y-m-d');
+                    $endOfWeek = Carbon::now($appTimezone)->endOfWeek()->format('Y-m-d');
+                    $filteredQuery->where(function($q) use ($startOfWeek, $endOfWeek) {
+                        $q->whereBetween('transaction_date', [$startOfWeek, $endOfWeek])
+                          ->orWhereBetween('created_at', [$startOfWeek, $endOfWeek]);
+                    });
+                    break;
+                case 'this_month':
+                    $month = Carbon::now($appTimezone)->month;
+                    $year = Carbon::now($appTimezone)->year;
+                    $filteredQuery->where(function($q) use ($month, $year) {
+                        $q->where(function($subQ) use ($month, $year) {
+                            $subQ->whereMonth('transaction_date', $month)
+                                 ->whereYear('transaction_date', $year);
+                        })->orWhere(function($subQ) use ($month, $year) {
+                            $subQ->whereMonth('created_at', $month)
+                                 ->whereYear('created_at', $year);
+                        });
+                    });
+                    break;
+                case 'this_year':
+                    $year = Carbon::now($appTimezone)->year;
+                    $filteredQuery->where(function($q) use ($year) {
+                        $q->whereYear('transaction_date', $year)
+                          ->orWhereYear('created_at', $year);
+                    });
+                    break;
+                case 'last_30_days':
+                    $thirtyDaysAgo = Carbon::now($appTimezone)->subDays(30)->format('Y-m-d');
+                    $filteredQuery->where(function($q) use ($thirtyDaysAgo) {
+                        $q->where('transaction_date', '>=', $thirtyDaysAgo)
+                          ->orWhere('created_at', '>=', $thirtyDaysAgo);
+                    });
+                    break;
+            }
+        }
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $filteredQuery->byDateRange($request->start_date, $request->end_date);
+        }
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $filteredQuery->where(function($q) use ($searchTerm) {
+                $q->byClientName($searchTerm)
+                ->orWhere('email', 'like', "%{$searchTerm}%")
+                ->orWhere('reason', 'like', "%{$searchTerm}%")
+                ->orWhere('school_hei', 'like', "%{$searchTerm}%")
+                ->orWhere('other_school_specify', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $filteredSurveys = $filteredQuery->get();
+
         $stats = [
             'total' => $allSurveys->count(),
             'satisfied' => $allSurveys->where('satisfaction_rating', 'satisfied')->count(),
             'dissatisfied' => $allSurveys->where('satisfaction_rating', 'dissatisfied')->count(),
-            'filtered_total' => $reviews->count(),
-            'filtered_satisfied' => $surveys->where('satisfaction_rating', 'satisfied')->count(),
-            'filtered_dissatisfied' => $surveys->where('satisfaction_rating', 'dissatisfied')->count(),
+            'filtered_total' => $filteredSurveys->count(),
+            'filtered_satisfied' => $filteredSurveys->where('satisfaction_rating', 'satisfied')->count(),
+            'filtered_dissatisfied' => $filteredSurveys->where('satisfaction_rating', 'dissatisfied')->count(),
             'today' => $allSurveys->filter(function($survey) {
                 return $survey->created_at->setTimezone(config('app.timezone'))->isToday();
             })->count(),
@@ -161,7 +251,7 @@ class ClientSatisfactionSurveyController extends Controller
         ];
 
         return Inertia::render('reviews/index', [
-            'reviews' => $reviews,
+            'reviews' => $surveys, // This now contains pagination meta data
             'schools' => $schools,
             'transactionTypes' => $transactionTypes,
             'stats' => $stats,
@@ -173,6 +263,7 @@ class ClientSatisfactionSurveyController extends Controller
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
                 'search' => $request->search,
+                'per_page' => $perPage,
             ]
         ]);
     }
