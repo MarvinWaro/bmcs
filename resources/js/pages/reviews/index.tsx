@@ -2,6 +2,7 @@ import ReviewRowTemplate from '@/components/reviews/ui/reviews-row';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Pagination,
@@ -17,8 +18,8 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, usePage } from '@inertiajs/react';
-import { Calendar, Filter, Search, Star, TrendingUp, Users, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Calendar, Download, Filter, Search, Star, TrendingUp, Users, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Client Reviews', href: '/client-reviews' }];
 
@@ -37,15 +38,8 @@ export type ReviewRow = {
     submittedAt: string;
 };
 
-type School = {
-    id: string;
-    name: string;
-};
-
-type TransactionType = {
-    value: string;
-    label: string;
-};
+type School = { id: string; name: string };
+type TransactionType = { value: string; label: string };
 
 type Stats = {
     total: number;
@@ -79,9 +73,7 @@ type PaginationMeta = {
     to: number;
 };
 
-type PaginatedReviews = {
-    data: ReviewRow[];
-} & PaginationMeta;
+type PaginatedReviews = { data: ReviewRow[] } & PaginationMeta;
 
 type PageProps = {
     reviews: PaginatedReviews;
@@ -91,39 +83,41 @@ type PageProps = {
     filters: Filters;
 };
 
-// Pagination Component using shadcn
+/* ------------------------- helpers ------------------------- */
+const isEmptyFilterValue = (v: unknown): v is '' | 'all' | undefined => v === '' || v === 'all' || v === undefined;
+
+// stringify current filters for export links (skip empty / sentinel values)
+const toQS = (obj: Record<string, unknown>) =>
+    Object.entries(obj)
+        .filter(([, v]) => v !== undefined && v !== '' && v !== 'all')
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+        .join('&');
+
+/* ------------------------- pagination (shadcn) ------------------------- */
 function PaginationComponent({ meta, onPageChange }: { meta: PaginationMeta; onPageChange: (page: number) => void }) {
     const { current_page, last_page, from, to, total } = meta;
 
-    const getVisiblePages = () => {
+    const visiblePages = useMemo(() => {
         const delta = 2;
-        const range = [];
-        const rangeWithDots = [];
+        const range: number[] = [];
+        const out: Array<number | '...'> = [];
 
         for (let i = Math.max(2, current_page - delta); i <= Math.min(last_page - 1, current_page + delta); i++) {
             range.push(i);
         }
 
-        if (current_page - delta > 2) {
-            rangeWithDots.push(1, '...');
-        } else {
-            rangeWithDots.push(1);
-        }
+        if (current_page - delta > 2) out.push(1, '...');
+        else out.push(1);
 
-        rangeWithDots.push(...range);
+        out.push(...range);
 
-        if (current_page + delta < last_page - 1) {
-            rangeWithDots.push('...', last_page);
-        } else if (last_page > 1) {
-            rangeWithDots.push(last_page);
-        }
+        if (current_page + delta < last_page - 1) out.push('...', last_page);
+        else if (last_page > 1) out.push(last_page);
 
-        return rangeWithDots;
-    };
+        return out;
+    }, [current_page, last_page]);
 
     if (last_page <= 1) return null;
-
-    const visiblePages = getVisiblePages();
 
     return (
         <div className="flex items-center justify-between px-6 py-4">
@@ -148,7 +142,7 @@ function PaginationComponent({ meta, onPageChange }: { meta: PaginationMeta; onP
                     </PaginationItem>
 
                     {visiblePages.map((page, index) => (
-                        <PaginationItem key={index}>
+                        <PaginationItem key={`${page}-${index}`}>
                             {page === '...' ? (
                                 <PaginationEllipsis />
                             ) : (
@@ -185,24 +179,22 @@ function PaginationComponent({ meta, onPageChange }: { meta: PaginationMeta; onP
     );
 }
 
+/* ------------------------- page ------------------------- */
 export default function ClientReviewsIndex() {
     const { props } = usePage<PageProps>();
     const { reviews, schools, transactionTypes, stats, filters } = props;
 
     const [localSearch, setLocalSearch] = useState(filters.search || '');
 
-    // Put this helper near the top of the file (optional)
-    const isEmptyFilterValue = (v: unknown): v is '' | 'all' | undefined => v === '' || v === 'all' || v === undefined;
-
-    // Debounced search effect
+    // Debounced search
     useEffect(() => {
         const timeoutId = setTimeout(() => {
             if (localSearch !== filters.search) {
                 updateFilters({ search: localSearch });
             }
         }, 300);
-
         return () => clearTimeout(timeoutId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [localSearch]);
 
     // type-safe setter for a single filter key
@@ -210,7 +202,6 @@ export default function ClientReviewsIndex() {
         if (isEmptyFilterValue(value)) {
             delete obj[key];
         } else {
-            // value is not undefined here, safe to assign as the exact key type
             obj[key] = value as Filters[K];
         }
     }
@@ -235,7 +226,6 @@ export default function ClientReviewsIndex() {
             delete currentFilters.page;
         }
 
-        // send only defined primitives to the server
         router.get('/client-reviews', currentFilters, {
             preserveState: true,
             preserveScroll: true,
@@ -296,19 +286,46 @@ export default function ClientReviewsIndex() {
         { value: 50, label: '50 per page' },
     ];
 
+    // Build export URLs based on current filters (unified route: /client-reviews/export)
+    const qs = toQS({
+        ...filters,
+        ...(localSearch ? { search: localSearch } : {}),
+    });
+
+    const excelHref = `/client-reviews/export-xlsx?${qs}`;
+    const csvHref = `/client-reviews/export-xlsx?${qs}&format=csv`;
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Client Reviews" />
 
             <div className="bg-background pb-6">
                 <div className="space-y-6">
-                    {/* Header Section */}
+                    {/* Header */}
                     <div className="space-y-2 px-6 pt-6">
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
                                 <h5 className="text-xl font-bold tracking-tight text-foreground">Client Reviews</h5>
                                 <p className="text-sm text-muted-foreground">View and manage client feedback from satisfaction surveys</p>
                             </div>
+
+                            {/* Export menu */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm" className="gap-2">
+                                        <Download className="h-4 w-4" />
+                                        Export
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem asChild>
+                                        <a href={excelHref}>Excel (.xlsx)</a>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <a href={csvHref}>CSV (.csv)</a>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </div>
 
@@ -364,7 +381,7 @@ export default function ClientReviewsIndex() {
                         </Card>
                     </div>
 
-                    {/* Filters Section */}
+                    {/* Filters */}
                     <div className="space-y-4 px-6">
                         <div className="flex items-center gap-2">
                             <Filter className="h-4 w-4 text-muted-foreground" />
@@ -378,7 +395,7 @@ export default function ClientReviewsIndex() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-                            {/* Satisfaction Rating Filter */}
+                            {/* Satisfaction */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">Satisfaction</label>
                                 <Select
@@ -398,7 +415,7 @@ export default function ClientReviewsIndex() {
                                 </Select>
                             </div>
 
-                            {/* School Filter */}
+                            {/* School */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">School</label>
                                 <Select value={filters.school_hei || 'all'} onValueChange={(value) => updateFilters({ school_hei: value })}>
@@ -417,7 +434,7 @@ export default function ClientReviewsIndex() {
                                 </Select>
                             </div>
 
-                            {/* Transaction Type Filter */}
+                            {/* Transaction Type */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">Transaction Type</label>
                                 <Select
@@ -438,7 +455,7 @@ export default function ClientReviewsIndex() {
                                 </Select>
                             </div>
 
-                            {/* Date Range Filter */}
+                            {/* Date Range */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">Date Range</label>
                                 <Select value={filters.date_range || 'all'} onValueChange={(value) => updateFilters({ date_range: value })}>
@@ -446,16 +463,16 @@ export default function ClientReviewsIndex() {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {dateRangeOptions.map((option) => (
-                                            <SelectItem key={option.value} value={option.value}>
-                                                {option.label}
+                                        {dateRangeOptions.map((o) => (
+                                            <SelectItem key={o.value} value={o.value}>
+                                                {o.label}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            {/* Per Page Filter */}
+                            {/* Per Page */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">Per Page</label>
                                 <Select value={String(filters.per_page || 10)} onValueChange={(value) => updateFilters({ per_page: Number(value) })}>
@@ -463,9 +480,9 @@ export default function ClientReviewsIndex() {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {perPageOptions.map((option) => (
-                                            <SelectItem key={option.value} value={String(option.value)}>
-                                                {option.label}
+                                        {perPageOptions.map((n) => (
+                                            <SelectItem key={n.value} value={String(n.value)}>
+                                                {n.label}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -574,7 +591,7 @@ export default function ClientReviewsIndex() {
                         </div>
                     </div>
 
-                    {/* Enhanced Table Card */}
+                    {/* Table */}
                     <Card className="rounded-none border-0 bg-card shadow-none">
                         <CardContent className="p-0">
                             <div className="overflow-hidden">
@@ -596,7 +613,7 @@ export default function ClientReviewsIndex() {
                                     </TableBody>
                                 </Table>
 
-                                {/* Enhanced Empty states */}
+                                {/* Empty states */}
                                 {reviews.data.length === 0 && (
                                     <div className="flex flex-col items-center justify-center px-6 py-20">
                                         {hasActiveFilters ? (

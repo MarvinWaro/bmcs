@@ -23,8 +23,6 @@ class ClientSatisfactionSurvey extends Model
         'other_transaction_specify',
         'satisfaction_rating',
         'reason',
-        'status',
-        'admin_notes',
     ];
 
     protected $casts = [

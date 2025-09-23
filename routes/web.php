@@ -1,41 +1,53 @@
 <?php
 
 use App\Http\Controllers\ClientSatisfactionSurveyController;
-use App\Http\Controllers\DashboardController; // Add this import
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SchoolController;
 use App\Models\School;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-// Update the home route to include schools data
+// Public home page (loads schools for the form)
 Route::get('/', function () {
     $schools = School::orderBy('name')->get(['id', 'name']);
 
     return Inertia::render('welcome', [
-        'schools' => $schools
+        'schools' => $schools,
     ]);
 })->name('home');
 
-// Client Satisfaction Survey Route (accessible to everyone)
+// Public: submit client satisfaction survey
 Route::post('/client-satisfaction-survey', [ClientSatisfactionSurveyController::class, 'store'])
     ->name('client-satisfaction-survey.store');
 
+// Authenticated area
 Route::middleware(['auth', 'verified'])->group(function () {
-    // Updated dashboard route to use DashboardController
-    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Admin routes for client reviews management
+    // Reviews list (filters + pagination)
     Route::get('/client-reviews', [ClientSatisfactionSurveyController::class, 'index'])
         ->name('client-reviews');
 
-    // Additional admin routes for managing surveys - use clientSatisfactionSurvey as parameter name
+    // --- EXPORT ROUTES (PUT THESE BEFORE THE {clientSatisfactionSurvey} ROUTES) ---
+    // Generic export (xlsx by default, ?format=csv for CSV)
+    Route::get('/client-reviews/export', [ClientSatisfactionSurveyController::class, 'exportXlsx'])
+        ->name('client-reviews.export');
+
+    // Optional convenience route if you still want a dedicated XLSX URL
+    Route::get('/client-reviews/export-xlsx', [ClientSatisfactionSurveyController::class, 'exportXlsx'])
+        ->name('client-reviews.export-xlsx');
+
+    // Review admin actions (constrain the param so 'export' can't match)
     Route::patch('/client-reviews/{clientSatisfactionSurvey}', [ClientSatisfactionSurveyController::class, 'update'])
+        ->whereUlid('clientSatisfactionSurvey')
         ->name('client-reviews.update');
 
     Route::delete('/client-reviews/{clientSatisfactionSurvey}', [ClientSatisfactionSurveyController::class, 'destroy'])
+        ->whereUlid('clientSatisfactionSurvey')
         ->name('client-reviews.destroy');
 
-    // School management routes
+    // School management
     Route::get('/schools', [SchoolController::class, 'index'])->name('schools.index');
     Route::post('/schools', [SchoolController::class, 'store'])->name('schools.store');
     Route::patch('/schools/{school}', [SchoolController::class, 'update'])->name('schools.update');
