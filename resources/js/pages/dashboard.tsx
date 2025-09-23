@@ -45,51 +45,41 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-// Grayscale color palette for UI elements
+// Enhanced color schemes
 const GRAYSCALE_COLORS = {
-    primary: '#374151',      // gray-700
-    secondary: '#6B7280',    // gray-500
-    tertiary: '#9CA3AF',     // gray-400
-    light: '#D1D5DB',        // gray-300
-    lighter: '#E5E7EB',      // gray-200
-    lightest: '#F3F4F6',     // gray-100
-    dark: '#1F2937',         // gray-800
-    darker: '#111827',       // gray-900
+    primary: '#374151',
+    secondary: '#6B7280',
+    tertiary: '#9CA3AF',
+    light: '#D1D5DB',
+    lighter: '#E5E7EB',
+    lightest: '#F3F4F6',
+    dark: '#1F2937',
+    darker: '#111827',
 };
 
-// Colorful palette for chart data
 const CHART_COLORS = {
-    satisfied: '#10B981',       // emerald-500 (green)
-    dissatisfied: '#EF4444',   // red-500
-    primary: '#3B82F6',        // blue-500
-    secondary: '#8B5CF6',      // violet-500
-    accent: '#F59E0B',         // amber-500
-    success: '#10B981',        // emerald-500
-    warning: '#F59E0B',        // amber-500
-    danger: '#EF4444',         // red-500
-    info: '#06B6D4',           // cyan-500
-    purple: '#8B5CF6',         // violet-500
-    pink: '#EC4899',           // pink-500
-    indigo: '#6366F1',         // indigo-500
-    teal: '#14B8A6',           // teal-500
-    orange: '#F97316',         // orange-500
-    lime: '#84CC16',           // lime-500
+    satisfied: '#059669',       // emerald-600 (better contrast)
+    dissatisfied: '#DC2626',   // red-600 (better contrast)
+    primary: '#2563EB',        // blue-600
+    secondary: '#7C3AED',      // violet-600
+    accent: '#D97706',         // amber-600
+    success: '#059669',        // emerald-600
+    warning: '#D97706',        // amber-600
+    danger: '#DC2626',         // red-600
+    info: '#0891B2',           // cyan-600
+    purple: '#7C3AED',         // violet-600
+    pink: '#DB2777',           // pink-600
+    indigo: '#4F46E5',         // indigo-600
+    teal: '#0D9488',           // teal-600
+    orange: '#EA580C',         // orange-600
+    lime: '#65A30D',           // lime-600
 };
 
-// Vibrant colors for pie chart
+// Enhanced pie chart colors with better contrast
 const PIE_COLORS = [
-    CHART_COLORS.primary,      // blue
-    CHART_COLORS.secondary,    // violet
-    CHART_COLORS.success,      // emerald
-    CHART_COLORS.warning,      // amber
-    CHART_COLORS.danger,       // red
-    CHART_COLORS.info,         // cyan
-    CHART_COLORS.purple,       // violet
-    CHART_COLORS.pink,         // pink
-    CHART_COLORS.indigo,       // indigo
-    CHART_COLORS.teal,         // teal
-    CHART_COLORS.orange,       // orange
-    CHART_COLORS.lime,         // lime
+    '#2563EB', '#7C3AED', '#059669', '#D97706', '#DC2626',
+    '#0891B2', '#DB2777', '#4F46E5', '#0D9488', '#EA580C',
+    '#65A30D', '#BE185D'
 ];
 
 type Analytics = {
@@ -159,14 +149,12 @@ export default function Dashboard() {
     const { props } = usePage<PageProps>();
     const { analytics, filter_options, current_filters } = props;
 
-    // State for chart time range filters
     const [dailyTimeRange, setDailyTimeRange] = React.useState("30d");
     const [monthlyTimeRange, setMonthlyTimeRange] = React.useState("6m");
 
     const updateFilters = (newFilters: Partial<CurrentFilters>) => {
         const filters = { ...current_filters, ...newFilters };
 
-        // Remove empty filters
         Object.keys(filters).forEach(key => {
             const filterKey = key as keyof CurrentFilters;
             if (!filters[filterKey] || filters[filterKey] === 'all') {
@@ -180,12 +168,10 @@ export default function Dashboard() {
         });
     };
 
-    // Get top 10 schools by transaction count
     const top10Schools = analytics.school_distribution
         .sort((a, b) => b.value - a.value)
         .slice(0, 10);
 
-    // Filter daily trend data based on time range
     const getFilteredDailyData = (timeRange: string) => {
         if (!analytics.daily_trend || analytics.daily_trend.length === 0) return [];
 
@@ -203,7 +189,6 @@ export default function Dashboard() {
         return sortedData.filter(item => new Date(item.date) >= cutoffDate);
     };
 
-    // Filter monthly trend data based on time range
     const getFilteredMonthlyData = (timeRange: string) => {
         if (!analytics.monthly_trend || analytics.monthly_trend.length === 0) return [];
 
@@ -217,48 +202,80 @@ export default function Dashboard() {
     const filteredDailyData = getFilteredDailyData(dailyTimeRange);
     const filteredMonthlyData = getFilteredMonthlyData(monthlyTimeRange);
 
-    // Custom tooltip for charts
+    // Enhanced custom tooltip
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
-                <div className="rounded-lg border border-border bg-background p-3 shadow-md">
-                    <p className="text-sm font-medium">{label}</p>
+                <div className="rounded-lg border border-border bg-background p-4 shadow-lg">
+                    <p className="text-sm font-semibold mb-2">{label}</p>
                     {payload.map((entry: any, index: number) => (
-                        <p key={index} className="text-sm" style={{ color: entry.color }}>
-                            {`${entry.dataKey}: ${entry.value}`}
-                        </p>
+                        <div key={index} className="flex items-center gap-2 text-sm">
+                            <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: entry.color }}
+                            />
+                            <span className="capitalize">{entry.dataKey}:</span>
+                            <span className="font-medium">{entry.value}</span>
+                        </div>
                     ))}
+                    {payload.length === 2 && (
+                        <div className="mt-2 pt-2 border-t border-border">
+                            <div className="text-xs text-muted-foreground">
+                                Total: {payload.reduce((sum: number, item: any) => sum + item.value, 0)}
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
         return null;
     };
 
-    // Custom tooltip for pie chart
+    // Enhanced pie chart tooltip
     const PieTooltip = ({ active, payload }: any) => {
         if (active && payload && payload.length) {
             const data = payload[0].payload;
+            const satisfactionRate = data.value > 0 ? ((data.satisfied / data.value) * 100).toFixed(1) : 0;
+
             return (
-                <div className="rounded-lg border border-border bg-background p-3 shadow-md">
-                    <p className="text-sm font-medium">{data.name}</p>
-                    <p className="text-sm">Responses: {data.value}</p>
-                    <p className="text-sm" style={{ color: CHART_COLORS.satisfied }}>
-                        Satisfied: {data.satisfied}
-                    </p>
-                    <p className="text-sm" style={{ color: CHART_COLORS.dissatisfied }}>
-                        Dissatisfied: {data.dissatisfied}
-                    </p>
+                <div className="rounded-lg border border-border bg-background p-4 shadow-lg min-w-[200px]">
+                    <p className="text-sm font-semibold mb-2">{data.name}</p>
+                    <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                            <span>Total Responses:</span>
+                            <span className="font-medium">{data.value}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="flex items-center gap-1">
+                                <div className="w-2 h-2 rounded-full bg-emerald-600"/>
+                                Satisfied:
+                            </span>
+                            <span className="font-medium">{data.satisfied}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="flex items-center gap-1">
+                                <div className="w-2 h-2 rounded-full bg-red-600"/>
+                                Dissatisfied:
+                            </span>
+                            <span className="font-medium">{data.dissatisfied}</span>
+                        </div>
+                        <div className="pt-2 border-t border-border">
+                            <div className="flex justify-between">
+                                <span>Satisfaction Rate:</span>
+                                <span className="font-medium">{satisfactionRate}%</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             );
         }
         return null;
     };
 
-    // Format percentage change for display
     const formatChange = (change: number) => {
         const icon = change >= 0 ? TrendingUp : TrendingDown;
         const IconComponent = icon;
-        const color = change >= 0 ? 'text-green-600' : 'text-red-600';
+        const color = change >= 0 ? 'text-emerald-600' : 'text-red-600';
 
         return (
             <div className={`flex items-center gap-1 text-xs ${color}`}>
@@ -406,7 +423,7 @@ export default function Dashboard() {
                     </Card>
                 </div>
 
-                {/* Full Width Area Chart */}
+                {/* Enhanced Area Chart */}
                 <Card>
                     <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
                         <div className="grid flex-1 gap-1">
@@ -441,82 +458,86 @@ export default function Dashboard() {
                             </SelectContent>
                         </Select>
                     </CardHeader>
-                    <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-                        <ResponsiveContainer width="100%" height={400}>
-                            <AreaChart data={filteredDailyData}>
-                                <defs>
-                                    <linearGradient id="fillSatisfied" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={CHART_COLORS.satisfied} stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor={CHART_COLORS.satisfied} stopOpacity={0.1} />
-                                    </linearGradient>
-                                    <linearGradient id="fillDissatisfied" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={CHART_COLORS.dissatisfied} stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor={CHART_COLORS.dissatisfied} stopOpacity={0.1} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid vertical={false} stroke={GRAYSCALE_COLORS.lighter} />
-                                <XAxis
-                                    dataKey="date"
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickMargin={8}
-                                    minTickGap={32}
-                                    tickFormatter={(value: string) => {
-                                        const date = new Date(value);
-                                        return date.toLocaleDateString("en-US", {
-                                            month: "short",
-                                            day: "numeric",
-                                        });
-                                    }}
-                                    stroke={GRAYSCALE_COLORS.secondary}
-                                />
-                                <YAxis stroke={GRAYSCALE_COLORS.secondary} />
-                                <Tooltip
-                                    content={({ active, payload, label }) => {
-                                        if (active && payload && payload.length) {
-                                            return (
-                                                <div className="rounded-lg border border-border bg-background p-3 shadow-md">
-                                                    <p className="text-sm font-medium">
-                                                        {new Date(label).toLocaleDateString("en-US", {
-                                                            month: "short",
-                                                            day: "numeric",
-                                                            year: "numeric",
-                                                        })}
-                                                    </p>
-                                                    {payload.map((entry: any, index: number) => (
-                                                        <p key={index} className="text-sm" style={{ color: entry.color }}>
-                                                            {`${entry.dataKey}: ${entry.value}`}
-                                                        </p>
-                                                    ))}
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    }}
-                                />
-                                <Area
-                                    dataKey="satisfied"
-                                    type="natural"
-                                    fill="url(#fillSatisfied)"
-                                    stroke={CHART_COLORS.satisfied}
-                                    strokeWidth={2}
-                                    fillOpacity={0.6}
-                                />
-                                <Area
-                                    dataKey="dissatisfied"
-                                    type="natural"
-                                    fill="url(#fillDissatisfied)"
-                                    stroke={CHART_COLORS.dissatisfied}
-                                    strokeWidth={2}
-                                    fillOpacity={0.6}
-                                />
-                                <Legend />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                    <CardContent className="p-0">
+                        <div className="p-6">
+                            <ResponsiveContainer width="100%" height={450}>
+                                <AreaChart
+                                    data={filteredDailyData}
+                                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                                >
+                                    <defs>
+                                        <linearGradient id="fillSatisfied" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={CHART_COLORS.satisfied} stopOpacity={0.8} />
+                                            <stop offset="95%" stopColor={CHART_COLORS.satisfied} stopOpacity={0.0} />
+                                        </linearGradient>
+                                        <linearGradient id="fillDissatisfied" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={CHART_COLORS.dissatisfied} stopOpacity={0.8} />
+                                            <stop offset="95%" stopColor={CHART_COLORS.dissatisfied} stopOpacity={0.0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid
+                                        strokeDasharray="3 3"
+                                        stroke={GRAYSCALE_COLORS.lighter}
+                                        horizontal={true}
+                                        vertical={false}
+                                    />
+                                    <XAxis
+                                        dataKey="date"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={10}
+                                        minTickGap={32}
+                                        tickFormatter={(value: string) => {
+                                            const date = new Date(value);
+                                            return date.toLocaleDateString("en-US", {
+                                                month: "short",
+                                                day: "numeric",
+                                            });
+                                        }}
+                                        tick={{ fontSize: 12, fill: GRAYSCALE_COLORS.secondary }}
+                                    />
+                                    <YAxis
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={10}
+                                        tick={{ fontSize: 12, fill: GRAYSCALE_COLORS.secondary }}
+                                    />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Area
+                                        dataKey="satisfied"
+                                        type="monotone"
+                                        stackId="1"
+                                        stroke={CHART_COLORS.satisfied}
+                                        fill="url(#fillSatisfied)"
+                                        strokeWidth={2}
+                                        name="Satisfied"
+                                        dot={false}
+                                        activeDot={{ r: 6, stroke: CHART_COLORS.satisfied, strokeWidth: 2, fill: CHART_COLORS.satisfied }}
+                                    />
+                                    <Area
+                                        dataKey="dissatisfied"
+                                        type="monotone"
+                                        stackId="1"
+                                        stroke={CHART_COLORS.dissatisfied}
+                                        fill="url(#fillDissatisfied)"
+                                        strokeWidth={2}
+                                        name="Dissatisfied"
+                                        dot={false}
+                                        activeDot={{ r: 6, stroke: CHART_COLORS.dissatisfied, strokeWidth: 2, fill: CHART_COLORS.dissatisfied }}
+                                    />
+                                    <Legend
+                                        verticalAlign="top"
+                                        height={36}
+                                        iconType="circle"
+                                        wrapperStyle={{ paddingBottom: '20px' }}
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
                     </CardContent>
                 </Card>
 
-                {/* Monthly Satisfaction Rate Chart */}
+                {/* Enhanced Monthly Satisfaction Rate Chart */}
                 <Card>
                     <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
                         <div className="grid flex-1 gap-1">
@@ -548,40 +569,52 @@ export default function Dashboard() {
                             </SelectContent>
                         </Select>
                     </CardHeader>
-                    <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <LineChart data={filteredMonthlyData}>
-                                <CartesianGrid vertical={false} stroke={GRAYSCALE_COLORS.lighter} />
-                                <XAxis
-                                    dataKey="month"
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickMargin={8}
-                                    stroke={GRAYSCALE_COLORS.secondary}
-                                />
-                                <YAxis
-                                    tickLine={false}
-                                    axisLine={false}
-                                    domain={[0, 100]}
-                                    stroke={GRAYSCALE_COLORS.secondary}
-                                />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Line
-                                    type="monotone"
-                                    dataKey="satisfaction_rate"
-                                    stroke={CHART_COLORS.primary}
-                                    strokeWidth={3}
-                                    dot={{ fill: CHART_COLORS.primary, strokeWidth: 2, r: 4 }}
-                                    activeDot={{ r: 6, stroke: CHART_COLORS.primary, strokeWidth: 2 }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
+                    <CardContent className="p-0">
+                        <div className="p-6">
+                            <ResponsiveContainer width="100%" height={320}>
+                                <LineChart
+                                    data={filteredMonthlyData}
+                                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                                >
+                                    <CartesianGrid
+                                        strokeDasharray="3 3"
+                                        stroke={GRAYSCALE_COLORS.lighter}
+                                        horizontal={true}
+                                        vertical={false}
+                                    />
+                                    <XAxis
+                                        dataKey="month"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={10}
+                                        tick={{ fontSize: 12, fill: GRAYSCALE_COLORS.secondary }}
+                                    />
+                                    <YAxis
+                                        tickLine={false}
+                                        axisLine={false}
+                                        domain={[0, 100]}
+                                        tickMargin={10}
+                                        tick={{ fontSize: 12, fill: GRAYSCALE_COLORS.secondary }}
+                                    />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="satisfaction_rate"
+                                        stroke={CHART_COLORS.primary}
+                                        strokeWidth={4}
+                                        dot={{ fill: CHART_COLORS.primary, strokeWidth: 2, r: 5 }}
+                                        activeDot={{ r: 7, stroke: CHART_COLORS.primary, strokeWidth: 3 }}
+                                        name="Satisfaction Rate (%)"
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
                     </CardContent>
                 </Card>
 
-                {/* Charts Row: Donut Chart and Transaction Distribution */}
+                {/* Charts Row: Enhanced Donut Chart and Transaction Distribution */}
                 <div className="grid gap-6 md:grid-cols-2">
-                    {/* Top 10 Schools Donut Chart */}
+                    {/* Enhanced Top 10 Schools Donut Chart */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -592,31 +625,43 @@ export default function Dashboard() {
                                 Survey responses by top 10 schools/institutions
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="flex-1 pb-0">
-                            <ResponsiveContainer width="100%" height={350}>
-                                <PieChart>
-                                    <Pie
-                                        data={top10Schools}
-                                        dataKey="value"
-                                        nameKey="name"
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={120}
-                                        paddingAngle={2}
-                                        label={({ name, value }) => `${name}: ${value}`}
-                                    >
-                                        {top10Schools.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip content={<PieTooltip />} />
-                                </PieChart>
-                            </ResponsiveContainer>
+                        <CardContent className="p-0">
+                            <div className="p-6">
+                                <ResponsiveContainer width="100%" height={380}>
+                                    <PieChart>
+                                        <Pie
+                                            data={top10Schools}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={70}
+                                            outerRadius={140}
+                                            paddingAngle={3}
+                                            strokeWidth={2}
+                                            stroke="#ffffff"
+                                        >
+                                            {top10Schools.map((entry, index) => (
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill={PIE_COLORS[index % PIE_COLORS.length]}
+                                                />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip content={<PieTooltip />} />
+                                        <Legend
+                                            verticalAlign="bottom"
+                                            height={36}
+                                            iconType="circle"
+                                            wrapperStyle={{ fontSize: '12px' }}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
                         </CardContent>
                     </Card>
 
-                    {/* Transaction Type Distribution Bar Chart */}
+                    {/* Enhanced Transaction Type Distribution Bar Chart */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -627,42 +672,59 @@ export default function Dashboard() {
                                 Survey responses by transaction type
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <ResponsiveContainer width="100%" height={350}>
-                                <BarChart data={analytics.transaction_distribution}>
-                                    <CartesianGrid vertical={false} stroke={GRAYSCALE_COLORS.lighter} />
-                                    <XAxis
-                                        dataKey="name"
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickMargin={8}
-                                        angle={-45}
-                                        textAnchor="end"
-                                        height={80}
-                                        fontSize={12}
-                                        stroke={GRAYSCALE_COLORS.secondary}
-                                    />
-                                    <YAxis
-                                        tickLine={false}
-                                        axisLine={false}
-                                        stroke={GRAYSCALE_COLORS.secondary}
-                                    />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Bar
-                                        dataKey="satisfied"
-                                        stackId="a"
-                                        fill={CHART_COLORS.satisfied}
-                                        name="Satisfied"
-                                    />
-                                    <Bar
-                                        dataKey="dissatisfied"
-                                        stackId="a"
-                                        fill={CHART_COLORS.dissatisfied}
-                                        name="Dissatisfied"
-                                    />
-                                    <Legend />
-                                </BarChart>
-                            </ResponsiveContainer>
+                        <CardContent className="p-0">
+                            <div className="p-6">
+                                <ResponsiveContainer width="100%" height={380}>
+                                    <BarChart
+                                        data={analytics.transaction_distribution}
+                                        margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+                                    >
+                                        <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            stroke={GRAYSCALE_COLORS.lighter}
+                                            horizontal={true}
+                                            vertical={false}
+                                        />
+                                        <XAxis
+                                            dataKey="name"
+                                            tickLine={false}
+                                            axisLine={false}
+                                            tickMargin={10}
+                                            angle={-45}
+                                            textAnchor="end"
+                                            height={80}
+                                            fontSize={11}
+                                            tick={{ fill: GRAYSCALE_COLORS.secondary }}
+                                        />
+                                        <YAxis
+                                            tickLine={false}
+                                            axisLine={false}
+                                            tickMargin={10}
+                                            tick={{ fontSize: 12, fill: GRAYSCALE_COLORS.secondary }}
+                                        />
+                                        <Tooltip content={<CustomTooltip />} />
+                                        <Bar
+                                            dataKey="satisfied"
+                                            stackId="a"
+                                            fill={CHART_COLORS.satisfied}
+                                            name="Satisfied"
+                                            radius={[0, 0, 0, 0]}
+                                        />
+                                        <Bar
+                                            dataKey="dissatisfied"
+                                            stackId="a"
+                                            fill={CHART_COLORS.dissatisfied}
+                                            name="Dissatisfied"
+                                            radius={[4, 4, 0, 0]}
+                                        />
+                                        <Legend
+                                            verticalAlign="top"
+                                            height={36}
+                                            iconType="circle"
+                                        />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
@@ -696,7 +758,7 @@ export default function Dashboard() {
                                         <TableCell className="font-medium">{survey.client_name}</TableCell>
                                         <TableCell>
                                             <Badge
-                                                variant={survey.satisfaction_rating === 'satisfied' ? 'default' : 'secondary'}
+                                                variant={survey.satisfaction_rating === 'satisfied' ? 'default' : 'destructive'}
                                                 className="text-xs"
                                             >
                                                 {survey.satisfaction_rating === 'satisfied' ? 'Satisfied' : 'Dissatisfied'}
