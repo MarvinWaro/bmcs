@@ -11,6 +11,10 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Carbon\Carbon;
 
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ClientSatisfactionSurveysExport;
+
+
 class ClientSatisfactionSurveyController extends Controller
 {
     /**
@@ -503,4 +507,24 @@ class ClientSatisfactionSurveyController extends Controller
             'reason.max' => 'Your feedback cannot exceed 2000 characters.',
         ];
     }
+
+    public function export(Request $request)
+    {
+        // Pass all current filters so the export matches what the admin is seeing
+        $filters = $request->only([
+            'satisfaction_rating',
+            'school_id',           // numeric id or "other" or "all"
+            'transaction_type',
+            'date_range',
+            'start_date',
+            'end_date',
+            'search',
+        ]);
+
+        $stamp = now()->format('Ymd_His');
+        $filename = "client_surveys_{$stamp}.xlsx";
+
+        return Excel::download(new ClientSatisfactionSurveysExport($filters), $filename);
+    }
+
 }
