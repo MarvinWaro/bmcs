@@ -6,22 +6,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('schools', function (Blueprint $table) {
-            $table->ulid('id')->primary();
-            $table->string('name');
+            $table->id(); // BIGINT auto-increment primary key
+            $table->string('name')->unique(); // make unique if you expect no duplicates
             $table->softDeletes();
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('schools');

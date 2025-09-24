@@ -18,16 +18,15 @@ class ClientSatisfactionSurveyController extends Controller
      */
     public function index(Request $request): Response
     {
-        // Build the query with filters
-        $query = ClientSatisfactionSurvey::query();
+        $query = ClientSatisfactionSurvey::query()->with('school');
 
-        // Apply filters based on request parameters
+        // Filters
         if ($request->filled('satisfaction_rating')) {
             $query->bySatisfactionRating($request->satisfaction_rating);
         }
 
-        if ($request->filled('school_hei') && $request->school_hei !== 'all') {
-            $query->bySchool($request->school_hei);
+        if ($request->filled('school_id') && $request->school_id !== 'all') {
+            $query->bySchoolId($request->school_id);
         }
 
         if ($request->filled('transaction_type') && $request->transaction_type !== 'all') {
@@ -41,44 +40,48 @@ class ClientSatisfactionSurveyController extends Controller
             switch ($request->date_range) {
                 case 'today':
                     $today = Carbon::now($appTimezone)->format('Y-m-d');
-                    $query->where(function($q) use ($today) {
+                    $query->where(function ($q) use ($today) {
                         $q->whereDate('transaction_date', $today)
                           ->orWhereDate('created_at', $today);
                     });
                     break;
+
                 case 'this_week':
-                    $startOfWeek = Carbon::now($appTimezone)->startOfWeek()->format('Y-m-d');
-                    $endOfWeek = Carbon::now($appTimezone)->endOfWeek()->format('Y-m-d');
-                    $query->where(function($q) use ($startOfWeek, $endOfWeek) {
-                        $q->whereBetween('transaction_date', [$startOfWeek, $endOfWeek])
-                          ->orWhereBetween('created_at', [$startOfWeek, $endOfWeek]);
+                    $start = Carbon::now($appTimezone)->startOfWeek()->format('Y-m-d');
+                    $end   = Carbon::now($appTimezone)->endOfWeek()->format('Y-m-d');
+                    $query->where(function ($q) use ($start, $end) {
+                        $q->whereBetween('transaction_date', [$start, $end])
+                          ->orWhereBetween('created_at', [$start, $end]);
                     });
                     break;
+
                 case 'this_month':
                     $month = Carbon::now($appTimezone)->month;
-                    $year = Carbon::now($appTimezone)->year;
-                    $query->where(function($q) use ($month, $year) {
-                        $q->where(function($subQ) use ($month, $year) {
-                            $subQ->whereMonth('transaction_date', $month)
-                                 ->whereYear('transaction_date', $year);
-                        })->orWhere(function($subQ) use ($month, $year) {
-                            $subQ->whereMonth('created_at', $month)
-                                 ->whereYear('created_at', $year);
+                    $year  = Carbon::now($appTimezone)->year;
+                    $query->where(function ($q) use ($month, $year) {
+                        $q->where(function ($sub) use ($month, $year) {
+                            $sub->whereMonth('transaction_date', $month)
+                                ->whereYear('transaction_date', $year);
+                        })->orWhere(function ($sub) use ($month, $year) {
+                            $sub->whereMonth('created_at', $month)
+                                ->whereYear('created_at', $year);
                         });
                     });
                     break;
+
                 case 'this_year':
                     $year = Carbon::now($appTimezone)->year;
-                    $query->where(function($q) use ($year) {
+                    $query->where(function ($q) use ($year) {
                         $q->whereYear('transaction_date', $year)
                           ->orWhereYear('created_at', $year);
                     });
                     break;
+
                 case 'last_30_days':
-                    $thirtyDaysAgo = Carbon::now($appTimezone)->subDays(30)->format('Y-m-d');
-                    $query->where(function($q) use ($thirtyDaysAgo) {
-                        $q->where('transaction_date', '>=', $thirtyDaysAgo)
-                          ->orWhere('created_at', '>=', $thirtyDaysAgo);
+                    $from = Carbon::now($appTimezone)->subDays(30)->format('Y-m-d');
+                    $query->where(function ($q) use ($from) {
+                        $q->where('transaction_date', '>=', $from)
+                          ->orWhere('created_at', '>=', $from);
                     });
                     break;
             }
@@ -89,32 +92,33 @@ class ClientSatisfactionSurveyController extends Controller
             $query->byDateRange($request->start_date, $request->end_date);
         }
 
-        // Search functionality
+        // Search: name/email/reason/other_school_specify + school name
         if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->byClientName($searchTerm)
-                ->orWhere('email', 'like', "%{$searchTerm}%")
-                ->orWhere('reason', 'like', "%{$searchTerm}%")
-                ->orWhere('school_hei', 'like', "%{$searchTerm}%")
-                ->orWhere('other_school_specify', 'like', "%{$searchTerm}%");
+            $term = $request->search;
+            $query->where(function ($q) use ($term) {
+                $q->byClientName($term)
+                  ->orWhere('email', 'like', "%{$term}%")
+                  ->orWhere('reason', 'like', "%{$term}%")
+                  ->orWhere('other_school_specify', 'like', "%{$term}%")
+                  ->orWhereHas('school', function ($sq) use ($term) {
+                      $sq->where('name', 'like', "%{$term}%");
+                  });
             });
         }
 
-        // Get per_page from request or default to 10
-        $perPage = $request->get('per_page', 10);
-        $validPerPageValues = [5, 10, 15, 20, 25, 50];
-        if (!in_array($perPage, $validPerPageValues)) {
+        // Pagination page size
+        $perPage = (int) $request->get('per_page', 10);
+        $validPerPage = [5, 10, 15, 20, 25, 50];
+        if (!in_array($perPage, $validPerPage)) {
             $perPage = 10;
         }
 
-        // Add pagination to the query
+        // Fetch + transform
         $surveys = $query->orderBy('created_at', 'desc')
             ->paginate($perPage)
-            ->withQueryString(); // This preserves the current query parameters
+            ->withQueryString();
 
-        // Transform the data - ensure dates are displayed correctly
-        $reviews = $surveys->getCollection()->map(function ($survey) {
+        $reviews = $surveys->getCollection()->map(function (ClientSatisfactionSurvey $survey) {
             return [
                 'id' => $survey->id,
                 'clientName' => $survey->full_name,
@@ -126,34 +130,30 @@ class ClientSatisfactionSurveyController extends Controller
                 'email' => $survey->email,
                 'rating' => $this->mapSatisfactionToStars($survey->satisfaction_rating),
                 'comment' => $survey->reason,
-                'date' => $survey->transaction_date->format('Y-m-d'),
+                'date' => $survey->transaction_date?->format('Y-m-d'),
                 'status' => $survey->status ?? 'submitted',
                 'loanType' => $survey->full_transaction_type,
-                'schoolHei' => $survey->full_school_name,
+                'schoolHei' => $survey->full_school_name,   // kept key for UI compatibility
                 'satisfactionRating' => $survey->satisfaction_rating,
                 'transactionType' => $survey->transaction_type,
                 'otherTransactionSpecify' => $survey->other_transaction_specify,
                 'otherSchoolSpecify' => $survey->other_school_specify,
-                'submittedAt' => $survey->created_at->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s'),
-                'adminNotes' => $survey->admin_notes,
+                'submittedAt' => $survey->created_at?->setTimezone(config('app.timezone'))?->format('Y-m-d H:i:s'),
+                // 'adminNotes' removed (no column)
             ];
         });
 
-        // Update the collection with transformed data
         $surveys->setCollection($reviews);
 
-        // Get statistics (for all surveys, not just paginated)
-        $allSurveys = ClientSatisfactionSurvey::all();
-
-        // Get filtered count for stats (without pagination)
+        // Stats
+        $allSurveys = ClientSatisfactionSurvey::query()->get();
         $filteredQuery = ClientSatisfactionSurvey::query();
 
-        // Apply the same filters to get accurate filtered stats
         if ($request->filled('satisfaction_rating')) {
             $filteredQuery->bySatisfactionRating($request->satisfaction_rating);
         }
-        if ($request->filled('school_hei') && $request->school_hei !== 'all') {
-            $filteredQuery->bySchool($request->school_hei);
+        if ($request->filled('school_id') && $request->school_id !== 'all') {
+            $filteredQuery->bySchoolId($request->school_id);
         }
         if ($request->filled('transaction_type') && $request->transaction_type !== 'all') {
             $filteredQuery->byTransactionType($request->transaction_type);
@@ -163,44 +163,44 @@ class ClientSatisfactionSurveyController extends Controller
             switch ($request->date_range) {
                 case 'today':
                     $today = Carbon::now($appTimezone)->format('Y-m-d');
-                    $filteredQuery->where(function($q) use ($today) {
+                    $filteredQuery->where(function ($q) use ($today) {
                         $q->whereDate('transaction_date', $today)
                           ->orWhereDate('created_at', $today);
                     });
                     break;
                 case 'this_week':
-                    $startOfWeek = Carbon::now($appTimezone)->startOfWeek()->format('Y-m-d');
-                    $endOfWeek = Carbon::now($appTimezone)->endOfWeek()->format('Y-m-d');
-                    $filteredQuery->where(function($q) use ($startOfWeek, $endOfWeek) {
-                        $q->whereBetween('transaction_date', [$startOfWeek, $endOfWeek])
-                          ->orWhereBetween('created_at', [$startOfWeek, $endOfWeek]);
+                    $start = Carbon::now($appTimezone)->startOfWeek()->format('Y-m-d');
+                    $end   = Carbon::now($appTimezone)->endOfWeek()->format('Y-m-d');
+                    $filteredQuery->where(function ($q) use ($start, $end) {
+                        $q->whereBetween('transaction_date', [$start, $end])
+                          ->orWhereBetween('created_at', [$start, $end]);
                     });
                     break;
                 case 'this_month':
                     $month = Carbon::now($appTimezone)->month;
-                    $year = Carbon::now($appTimezone)->year;
-                    $filteredQuery->where(function($q) use ($month, $year) {
-                        $q->where(function($subQ) use ($month, $year) {
-                            $subQ->whereMonth('transaction_date', $month)
-                                 ->whereYear('transaction_date', $year);
-                        })->orWhere(function($subQ) use ($month, $year) {
-                            $subQ->whereMonth('created_at', $month)
-                                 ->whereYear('created_at', $year);
+                    $year  = Carbon::now($appTimezone)->year;
+                    $filteredQuery->where(function ($q) use ($month, $year) {
+                        $q->where(function ($sub) use ($month, $year) {
+                            $sub->whereMonth('transaction_date', $month)
+                                ->whereYear('transaction_date', $year);
+                        })->orWhere(function ($sub) use ($month, $year) {
+                            $sub->whereMonth('created_at', $month)
+                                ->whereYear('created_at', $year);
                         });
                     });
                     break;
                 case 'this_year':
                     $year = Carbon::now($appTimezone)->year;
-                    $filteredQuery->where(function($q) use ($year) {
+                    $filteredQuery->where(function ($q) use ($year) {
                         $q->whereYear('transaction_date', $year)
                           ->orWhereYear('created_at', $year);
                     });
                     break;
                 case 'last_30_days':
-                    $thirtyDaysAgo = Carbon::now($appTimezone)->subDays(30)->format('Y-m-d');
-                    $filteredQuery->where(function($q) use ($thirtyDaysAgo) {
-                        $q->where('transaction_date', '>=', $thirtyDaysAgo)
-                          ->orWhere('created_at', '>=', $thirtyDaysAgo);
+                    $from = Carbon::now($appTimezone)->subDays(30)->format('Y-m-d');
+                    $filteredQuery->where(function ($q) use ($from) {
+                        $q->where('transaction_date', '>=', $from)
+                          ->orWhere('created_at', '>=', $from);
                     });
                     break;
             }
@@ -209,13 +209,15 @@ class ClientSatisfactionSurveyController extends Controller
             $filteredQuery->byDateRange($request->start_date, $request->end_date);
         }
         if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $filteredQuery->where(function($q) use ($searchTerm) {
-                $q->byClientName($searchTerm)
-                ->orWhere('email', 'like', "%{$searchTerm}%")
-                ->orWhere('reason', 'like', "%{$searchTerm}%")
-                ->orWhere('school_hei', 'like', "%{$searchTerm}%")
-                ->orWhere('other_school_specify', 'like', "%{$searchTerm}%");
+            $term = $request->search;
+            $filteredQuery->where(function ($q) use ($term) {
+                $q->byClientName($term)
+                  ->orWhere('email', 'like', "%{$term}%")
+                  ->orWhere('reason', 'like', "%{$term}%")
+                  ->orWhere('other_school_specify', 'like', "%{$term}%")
+                  ->orWhereHas('school', function ($sq) use ($term) {
+                      $sq->where('name', 'like', "%{$term}%");
+                  });
             });
         }
 
@@ -228,18 +230,12 @@ class ClientSatisfactionSurveyController extends Controller
             'filtered_total' => $filteredSurveys->count(),
             'filtered_satisfied' => $filteredSurveys->where('satisfaction_rating', 'satisfied')->count(),
             'filtered_dissatisfied' => $filteredSurveys->where('satisfaction_rating', 'dissatisfied')->count(),
-            'today' => $allSurveys->filter(function($survey) {
-                return $survey->created_at->setTimezone(config('app.timezone'))->isToday();
-            })->count(),
-            'this_month' => $allSurveys->filter(function($survey) {
-                return $survey->created_at->setTimezone(config('app.timezone'))->isCurrentMonth();
-            })->count(),
+            'today' => $allSurveys->filter(fn ($s) => $s->created_at?->setTimezone(config('app.timezone'))?->isToday())->count(),
+            'this_month' => $allSurveys->filter(fn ($s) => $s->created_at?->setTimezone(config('app.timezone'))?->isCurrentMonth())->count(),
         ];
 
-        // Get schools for filter dropdown
+        // Filters data for UI
         $schools = School::orderBy('name')->get(['id', 'name']);
-
-        // Get unique transaction types from surveys
         $transactionTypes = [
             ['value' => 'enrollment', 'label' => 'Enrollment'],
             ['value' => 'payment', 'label' => 'Payment'],
@@ -251,20 +247,20 @@ class ClientSatisfactionSurveyController extends Controller
         ];
 
         return Inertia::render('reviews/index', [
-            'reviews' => $surveys, // This now contains pagination meta data
+            'reviews' => $surveys,
             'schools' => $schools,
             'transactionTypes' => $transactionTypes,
             'stats' => $stats,
             'filters' => [
                 'satisfaction_rating' => $request->satisfaction_rating,
-                'school_hei' => $request->school_hei,
+                'school_id' => $request->school_id,
                 'transaction_type' => $request->transaction_type,
                 'date_range' => $request->date_range,
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
                 'search' => $request->search,
                 'per_page' => $perPage,
-            ]
+            ],
         ]);
     }
 
@@ -273,106 +269,101 @@ class ClientSatisfactionSurveyController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'transaction_date' => 'required|date|before_or_equal:today',
-            'first_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'school_hei' => ['required', 'string', Rule::in(array_merge(
-                School::pluck('id')->toArray(),
-                ['other']
-            ))],
-            'other_school_specify' => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::requiredIf($request->school_hei === 'other')
+        $validated = $request->validate(
+            [
+                'transaction_date' => 'required|date|before_or_equal:today',
+                'first_name' => 'required|string|max:255',
+                'middle_name' => 'nullable|string|max:255',
+                'last_name' => 'required|string|max:255',
+                'email' => 'required|email|max:255',
+
+                // Either school_id (FK) OR other_school_specify must be present
+                'school_id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists('schools', 'id'),
+                    'required_without:other_school_specify',
+                ],
+                'other_school_specify' => [
+                    'nullable',
+                    'string',
+                    'max:255',
+                    'required_without:school_id',
+                ],
+
+                'transaction_type' => ['required', 'string', Rule::in([
+                    'enrollment', 'payment', 'transcript', 'certification', 'scholarship', 'consultation', 'other',
+                ])],
+                'other_transaction_specify' => [
+                    'nullable', 'string', 'max:255',
+                    Rule::requiredIf($request->transaction_type === 'other'),
+                ],
+                'satisfaction_rating' => ['required', 'string', Rule::in(['dissatisfied', 'satisfied'])],
+                'reason' => 'required|string|min:10|max:2000',
             ],
-            'transaction_type' => ['required', 'string', Rule::in([
-                'enrollment',
-                'payment',
-                'transcript',
-                'certification',
-                'scholarship',
-                'consultation',
-                'other'
-            ])],
-            'other_transaction_specify' => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::requiredIf($request->transaction_type === 'other')
-            ],
-            'satisfaction_rating' => ['required', 'string', Rule::in([
-                'dissatisfied',
-                'satisfied'
-            ])],
-            'reason' => 'required|string|min:10|max:2000',
-        ], [
-            'transaction_date.required' => 'The transaction date is required.',
-            'transaction_date.date' => 'Please enter a valid date.',
-            'transaction_date.before_or_equal' => 'The transaction date cannot be in the future.',
-            'first_name.required' => 'Your first name is required.',
-            'first_name.max' => 'Your first name cannot exceed 255 characters.',
-            'middle_name.max' => 'Your middle name cannot exceed 255 characters.',
-            'last_name.required' => 'Your last name is required.',
-            'last_name.max' => 'Your last name cannot exceed 255 characters.',
-            'email.required' => 'Your email address is required.',
-            'email.email' => 'Please enter a valid email address.',
-            'email.max' => 'Your email address cannot exceed 255 characters.',
-            'school_hei.required' => 'School/HEI is required.',
-            'school_hei.in' => 'Please select a valid school or "Other".',
-            'other_school_specify.required' => 'Please specify your school/institution when selecting "Other".',
-            'other_school_specify.max' => 'School specification cannot exceed 255 characters.',
-            'transaction_type.required' => 'Please select a transaction type.',
-            'transaction_type.in' => 'Please select a valid transaction type.',
-            'other_transaction_specify.required' => 'Please specify the type of transaction when selecting "Other".',
-            'other_transaction_specify.max' => 'Transaction specification cannot exceed 255 characters.',
-            'satisfaction_rating.required' => 'Please select your satisfaction rating.',
-            'satisfaction_rating.in' => 'Please select a valid satisfaction rating.',
-            'reason.required' => 'Please provide your feedback.',
-            'reason.min' => 'Your feedback must be at least 10 characters long.',
-            'reason.max' => 'Your feedback cannot exceed 2000 characters.',
-        ]);
+            [
+                'transaction_date.required' => 'The transaction date is required.',
+                'transaction_date.date' => 'Please enter a valid date.',
+                'transaction_date.before_or_equal' => 'The transaction date cannot be in the future.',
+
+                'first_name.required' => 'Your first name is required.',
+                'first_name.max' => 'Your first name cannot exceed 255 characters.',
+                'middle_name.max' => 'Your middle name cannot exceed 255 characters.',
+                'last_name.required' => 'Your last name is required.',
+                'last_name.max' => 'Your last name cannot exceed 255 characters.',
+                'email.required' => 'Your email address is required.',
+                'email.email' => 'Please enter a valid email address.',
+                'email.max' => 'Your email address cannot exceed 255 characters.',
+
+                'school_id.required_without' => 'Please select a school or specify "Other".',
+                'school_id.exists' => 'Please select a valid school.',
+                'other_school_specify.required_without' => 'Please specify your school/institution when not selecting a listed school.',
+                'other_school_specify.max' => 'School specification cannot exceed 255 characters.',
+
+                'transaction_type.required' => 'Please select a transaction type.',
+                'transaction_type.in' => 'Please select a valid transaction type.',
+                'other_transaction_specify.required' => 'Please specify the type of transaction when selecting "Other".',
+                'other_transaction_specify.max' => 'Transaction specification cannot exceed 255 characters.',
+
+                'satisfaction_rating.required' => 'Please select your satisfaction rating.',
+                'satisfaction_rating.in' => 'Please select a valid satisfaction rating.',
+                'reason.required' => 'Please provide your feedback.',
+                'reason.min' => 'Your feedback must be at least 10 characters long.',
+                'reason.max' => 'Your feedback cannot exceed 2000 characters.',
+            ]
+        );
 
         try {
-            // FIXED: Handle date properly to avoid timezone issues
-            // Parse the date string and ensure it's stored as the exact date provided
-            if ($validated['transaction_date']) {
-                // Create a Carbon instance from the date string in the app timezone
+            // Normalize date to Y-m-d without timezone shift
+            if (!empty($validated['transaction_date'])) {
                 $date = Carbon::createFromFormat('Y-m-d', $validated['transaction_date'], config('app.timezone'));
                 $validated['transaction_date'] = $date->format('Y-m-d');
             }
 
-            // Handle school_hei value - convert school ID to school name for storage
-            if ($validated['school_hei'] !== 'other') {
-                $school = School::find($validated['school_hei']);
-                if ($school) {
-                    $validated['school_hei'] = $school->name;
-                }
+            // If using a listed school, clear "other"
+            if (!empty($validated['school_id'])) {
                 $validated['other_school_specify'] = null;
             }
 
-            // Create the survey response with default status
-            $validated['status'] = 'submitted';
-
-            // If transaction_type is not 'other', clear the other_transaction_specify field
-            if ($validated['transaction_type'] !== 'other') {
+            // If transaction_type not 'other', clear the extra field
+            if (($validated['transaction_type'] ?? null) !== 'other') {
                 $validated['other_transaction_specify'] = null;
             }
+
+            // Default status
+            $validated['status'] = 'submitted';
 
             ClientSatisfactionSurvey::create($validated);
 
             return redirect()->back()->with('success', 'Thank you for your feedback! Your response has been recorded.');
-
         } catch (\Exception $e) {
             \Log::error('Error saving client satisfaction survey: ' . $e->getMessage(), [
                 'data' => $validated,
-                'exception' => $e
+                'exception' => $e,
             ]);
 
-            return redirect()->back()
+            return redirect()
+                ->back()
                 ->withErrors(['general' => 'There was an error processing your submission. Please try again.'])
                 ->withInput();
         }
@@ -385,16 +376,14 @@ class ClientSatisfactionSurveyController extends Controller
     {
         $validated = $request->validate([
             'status' => 'required|string|in:submitted,reviewed,resolved',
-            'admin_notes' => 'nullable|string|max:1000',
+            // 'admin_notes' removed (no column)
         ]);
 
         try {
             $clientSatisfactionSurvey->update($validated);
-
             return redirect()->back()->with('success', 'Survey updated successfully.');
         } catch (\Exception $e) {
             \Log::error('Error updating survey: ' . $e->getMessage());
-
             return redirect()->back()->withErrors(['general' => 'Failed to update survey.']);
         }
     }
@@ -406,11 +395,9 @@ class ClientSatisfactionSurveyController extends Controller
     {
         try {
             $clientSatisfactionSurvey->delete();
-
             return redirect()->back()->with('success', 'Survey deleted successfully.');
         } catch (\Exception $e) {
             \Log::error('Error deleting survey: ' . $e->getMessage());
-
             return redirect()->back()->withErrors(['general' => 'Failed to delete survey.']);
         }
     }
@@ -420,7 +407,7 @@ class ClientSatisfactionSurveyController extends Controller
      */
     private function mapSatisfactionToStars(string $satisfaction): int
     {
-        return match($satisfaction) {
+        return match ($satisfaction) {
             'dissatisfied' => 2,
             'satisfied' => 5,
             default => 3,
@@ -428,7 +415,7 @@ class ClientSatisfactionSurveyController extends Controller
     }
 
     /**
-     * Get validation rules for the form
+     * If you still need these for external use
      */
     public static function getValidationRules(): array
     {
@@ -438,42 +425,15 @@ class ClientSatisfactionSurveyController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            'school_hei' => ['required', 'string', Rule::in(array_merge(
-                School::pluck('id')->toArray(),
-                ['other']
-            ))],
-            'other_school_specify' => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::requiredIf(request('school_hei') === 'other')
-            ],
-            'transaction_type' => ['required', 'string', Rule::in([
-                'enrollment',
-                'payment',
-                'transcript',
-                'certification',
-                'scholarship',
-                'consultation',
-                'other'
-            ])],
-            'other_transaction_specify' => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::requiredIf(request('transaction_type') === 'other')
-            ],
-            'satisfaction_rating' => ['required', 'string', Rule::in([
-                'dissatisfied',
-                'satisfied'
-            ])],
+            'school_id' => ['nullable', 'integer', Rule::exists('schools', 'id'), 'required_without:other_school_specify'],
+            'other_school_specify' => ['nullable', 'string', 'max:255', 'required_without:school_id'],
+            'transaction_type' => ['required', 'string', Rule::in(['enrollment','payment','transcript','certification','scholarship','consultation','other'])],
+            'other_transaction_specify' => ['nullable','string','max:255', Rule::requiredIf(request('transaction_type') === 'other')],
+            'satisfaction_rating' => ['required','string', Rule::in(['dissatisfied','satisfied'])],
             'reason' => 'required|string|min:10|max:2000',
         ];
     }
 
-    /**
-     * Get validation messages
-     */
     public static function getValidationMessages(): array
     {
         return [
@@ -488,9 +448,9 @@ class ClientSatisfactionSurveyController extends Controller
             'email.required' => 'Your email address is required.',
             'email.email' => 'Please enter a valid email address.',
             'email.max' => 'Your email address cannot exceed 255 characters.',
-            'school_hei.required' => 'School/HEI is required.',
-            'school_hei.in' => 'Please select a valid school or "Other".',
-            'other_school_specify.required' => 'Please specify your school/institution when selecting "Other".',
+            'school_id.required_without' => 'Please select a school or specify "Other".',
+            'school_id.exists' => 'Please select a valid school.',
+            'other_school_specify.required_without' => 'Please specify your school/institution when not selecting a listed school.',
             'other_school_specify.max' => 'School specification cannot exceed 255 characters.',
             'transaction_type.required' => 'Please select a transaction type.',
             'transaction_type.in' => 'Please select a valid transaction type.',
