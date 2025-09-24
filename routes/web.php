@@ -36,6 +36,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/client-reviews', [ClientSatisfactionSurveyController::class, 'index'])
         ->name('client-reviews');
 
+    // Export Client Reviews (CSV/XLSX via Laravel Excel)
+    // Accepts the same optional query params as index:
+    // ?satisfaction_rating=&school_id=&transaction_type=&date_range=&start_date=&end_date=&search=
+    Route::get('/client-reviews/export', [ClientSatisfactionSurveyController::class, 'export'])
+        ->name('client-reviews.export');
+
+    // Update / Delete a single review
     Route::patch('/client-reviews/{clientSatisfactionSurvey}', [ClientSatisfactionSurveyController::class, 'update'])
         ->whereNumber('clientSatisfactionSurvey')
         ->name('client-reviews.update');
@@ -55,7 +62,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/schools/{school}', [SchoolController::class, 'destroy'])
         ->whereNumber('school')
         ->name('schools.destroy');
+
+    Route::get('/memorandum', function () {
+        return Inertia::render('display/coming-soon', [
+            'title' => 'List of Memorandum',
+            'description' => 'We\'re working hard to bring you this feature. Check back soon!'
+        ]);
+    })->name('memorandum.index');
 });
 
-require __DIR__ . '/settings.php';
-require __DIR__ . '/auth.php';
+require __DIR__.'/settings.php';
+require __DIR__.'/auth.php';

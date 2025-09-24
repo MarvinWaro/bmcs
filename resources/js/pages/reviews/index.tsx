@@ -18,8 +18,8 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, usePage } from '@inertiajs/react';
-import { Calendar, Filter, Search, Star, TrendingUp, Users, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Calendar, Download, Filter, Search, Star, TrendingUp, Users, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Client Reviews', href: '/client-reviews' }];
 
@@ -54,7 +54,7 @@ type Stats = {
 
 type Filters = {
     satisfaction_rating?: string;
-    school_id?: string; // <-- use school_id (id or "other")
+    school_id?: string; // id (as string) or "other"
     transaction_type?: string;
     date_range?: string;
     start_date?: string;
@@ -230,14 +230,29 @@ export default function ClientReviewsIndex() {
         { value: 'last_30_days', label: 'Last 30 Days' },
     ];
 
-    const perPageOptions = [
-        { value: 5, label: '5 per page' },
-        { value: 10, label: '10 per page' },
-        { value: 15, label: '15 per page' },
-        { value: 20, label: '20 per page' },
-        { value: 25, label: '25 per page' },
-        { value: 50, label: '50 per page' },
-    ];
+    const perPageOptions = [5, 10, 15, 20, 25, 50];
+
+    // Build export URL with current filters + current localSearch (debounce-friendly)
+    const exportUrl = useMemo(() => {
+        const params = new URLSearchParams();
+
+        const payload: Partial<Filters> = {
+            ...filters,
+            search: localSearch ?? filters.search,
+        };
+
+        (Object.entries(payload) as [keyof Filters, any][]).forEach(([key, value]) => {
+            if (value === undefined || value === null || value === '' || value === 'all') return;
+            params.set(String(key), String(value));
+        });
+
+        return `/client-reviews/export?${params.toString()}`;
+    }, [filters, localSearch]);
+
+    const handleExport = () => {
+        // just navigate to export route (server returns .xlsx download)
+        window.location.href = exportUrl;
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -246,10 +261,20 @@ export default function ClientReviewsIndex() {
                 <div className="space-y-6">
                     {/* Header */}
                     <div className="space-y-2 px-6 pt-6">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-4">
                             <div className="space-y-1">
                                 <h5 className="text-xl font-bold tracking-tight text-foreground">Client Reviews</h5>
                                 <p className="text-sm text-muted-foreground">View and manage client feedback from satisfaction surveys</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    size="sm"
+                                    onClick={handleExport}
+                                    className="gap-2 border-0 bg-[#21A366] text-white hover:bg-[#1E8E5A] focus-visible:ring-[#21A366]/30"
+                                >
+                                    <Download className="h-4 w-4" />
+                                    Export (.xlsx)
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -404,7 +429,7 @@ export default function ClientReviewsIndex() {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {[5, 10, 15, 20, 25, 50].map((n) => (
+                                        {perPageOptions.map((n) => (
                                             <SelectItem key={n} value={String(n)}>
                                                 {n} per page
                                             </SelectItem>
