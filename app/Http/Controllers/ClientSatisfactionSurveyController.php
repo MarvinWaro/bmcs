@@ -23,8 +23,7 @@ class ClientSatisfactionSurveyController extends Controller
     public function index(Request $request): Response
     {
         // Base query + eager load
-        $query = ClientSatisfactionSurvey::query()
-            ->with('school');
+        $query = ClientSatisfactionSurvey::query()->with('school');
 
         /**
          * -------- Filters (MAIN LIST) ----------
@@ -38,7 +37,6 @@ class ClientSatisfactionSurveyController extends Controller
         // School: accepts numeric id OR "other" OR "all"
         if ($request->filled('school_id') && $request->school_id !== 'all') {
             if ($request->school_id === 'other') {
-                // free-text schools (not from DB)
                 $query->whereNull('school_id')->whereNotNull('other_school_specify');
             } else {
                 $query->where('school_id', $request->school_id);
@@ -50,68 +48,52 @@ class ClientSatisfactionSurveyController extends Controller
             $query->where('transaction_type', $request->transaction_type);
         }
 
-        // Date range (app timezone)
+        // Date range (match Dashboard: **transaction_date only**)
         if ($request->filled('date_range') && $request->date_range !== 'all') {
             $tz = config('app.timezone');
+
             switch ($request->date_range) {
-                case 'today':
-                    $today = Carbon::now($tz)->format('Y-m-d');
-                    $query->where(function ($q) use ($today) {
-                        $q->whereDate('transaction_date', $today)
-                        ->orWhereDate('created_at', $today);
-                    });
+                case 'today': {
+                    $today = Carbon::now($tz)->toDateString();
+                    $query->whereDate('transaction_date', $today);
                     break;
+                }
 
-                case 'this_week':
-                    $start = Carbon::now($tz)->startOfWeek()->format('Y-m-d');
-                    $end   = Carbon::now($tz)->endOfWeek()->format('Y-m-d');
-                    $query->where(function ($q) use ($start, $end) {
-                        $q->whereBetween('transaction_date', [$start, $end])
-                        ->orWhereBetween('created_at', [$start, $end]);
-                    });
+                case 'this_week': {
+                    $start = Carbon::now($tz)->startOfWeek()->toDateString();
+                    $end   = Carbon::now($tz)->endOfWeek()->toDateString();
+                    $query->whereBetween('transaction_date', [$start, $end]);
                     break;
+                }
 
-                case 'this_month':
+                case 'this_month': {
                     $month = Carbon::now($tz)->month;
                     $year  = Carbon::now($tz)->year;
-                    $query->where(function ($q) use ($month, $year) {
-                        $q->where(function ($sub) use ($month, $year) {
-                            $sub->whereMonth('transaction_date', $month)
-                                ->whereYear('transaction_date', $year);
-                        })->orWhere(function ($sub) use ($month, $year) {
-                            $sub->whereMonth('created_at', $month)
-                                ->whereYear('created_at', $year);
-                        });
-                    });
+                    $query->whereMonth('transaction_date', $month)
+                        ->whereYear('transaction_date', $year);
                     break;
+                }
 
-                case 'this_year':
+                case 'this_year': {
                     $year = Carbon::now($tz)->year;
-                    $query->where(function ($q) use ($year) {
-                        $q->whereYear('transaction_date', $year)
-                        ->orWhereYear('created_at', $year);
-                    });
+                    $query->whereYear('transaction_date', $year);
                     break;
+                }
 
-                case 'last_30_days':
-                    $from = Carbon::now($tz)->subDays(30)->format('Y-m-d');
-                    $query->where(function ($q) use ($from) {
-                        $q->where('transaction_date', '>=', $from)
-                        ->orWhere('created_at', '>=', $from);
-                    });
+                case 'last_30_days': {
+                    $from = Carbon::now($tz)->subDays(30)->toDateString();
+                    $query->where('transaction_date', '>=', $from);
                     break;
+                }
             }
         }
 
-        // Custom date range
+        // Custom date range (match Dashboard: **transaction_date only**)
         if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->where(function ($q) use ($request) {
-                $q->whereBetween('transaction_date', [$request->start_date, $request->end_date])
-                ->orWhereBetween('created_at',        [$request->start_date, $request->end_date]);
-            });
+            $query->whereBetween('transaction_date', [$request->start_date, $request->end_date]);
         }
 
-        // Search (client name, email, reason, other school, school name)
+        // Search
         if ($request->filled('search')) {
             $term = $request->search;
             $query->where(function ($q) use ($term) {
@@ -134,10 +116,9 @@ class ClientSatisfactionSurveyController extends Controller
          */
         $perPage = (int) $request->get('per_page', 10);
         $allowed = [5, 10, 15, 20, 25, 50];
-        if (!in_array($perPage, $allowed, true)) {
-            $perPage = 10;
-        }
+        if (!in_array($perPage, $allowed, true)) $perPage = 10;
 
+        // (You can switch to orderBy('transaction_date','desc') if you prefer)
         $surveys = $query->orderBy('created_at', 'desc')
             ->paginate($perPage)
             ->withQueryString();
@@ -158,7 +139,7 @@ class ClientSatisfactionSurveyController extends Controller
                 'date'                   => optional($survey->transaction_date)->format('Y-m-d'),
                 'status'                 => $survey->status ?? 'submitted',
                 'loanType'               => $survey->full_transaction_type,
-                'schoolHei'              => $survey->full_school_name, // handles school OR other_school_specify
+                'schoolHei'              => $survey->full_school_name,
                 'satisfactionRating'     => $survey->satisfaction_rating,
                 'transactionType'        => $survey->transaction_type,
                 'otherTransactionSpecify'=> $survey->other_transaction_specify,
@@ -169,7 +150,7 @@ class ClientSatisfactionSurveyController extends Controller
         $surveys->setCollection($reviews);
 
         /**
-         * -------- Stats (MIRROR THE SAME FILTERS) ----------
+         * -------- Stats (MIRROR SAME FILTERS) ----------
          */
         $allSurveys = ClientSatisfactionSurvey::query()->get();
         $filtered = ClientSatisfactionSurvey::query();
@@ -177,7 +158,6 @@ class ClientSatisfactionSurveyController extends Controller
         if ($request->filled('satisfaction_rating') && $request->satisfaction_rating !== 'all') {
             $filtered->where('satisfaction_rating', $request->satisfaction_rating);
         }
-
         if ($request->filled('school_id') && $request->school_id !== 'all') {
             if ($request->school_id === 'other') {
                 $filtered->whereNull('school_id')->whereNotNull('other_school_specify');
@@ -185,64 +165,47 @@ class ClientSatisfactionSurveyController extends Controller
                 $filtered->where('school_id', $request->school_id);
             }
         }
-
         if ($request->filled('transaction_type') && $request->transaction_type !== 'all') {
             $filtered->where('transaction_type', $request->transaction_type);
         }
 
+        // Date range for stats (transaction_date only)
         if ($request->filled('date_range') && $request->date_range !== 'all') {
             $tz = config('app.timezone');
             switch ($request->date_range) {
-                case 'today':
-                    $today = Carbon::now($tz)->format('Y-m-d');
-                    $filtered->where(function ($q) use ($today) {
-                        $q->whereDate('transaction_date', $today)
-                        ->orWhereDate('created_at', $today);
-                    });
+                case 'today': {
+                    $today = Carbon::now($tz)->toDateString();
+                    $filtered->whereDate('transaction_date', $today);
                     break;
-                case 'this_week':
-                    $start = Carbon::now($tz)->startOfWeek()->format('Y-m-d');
-                    $end   = Carbon::now($tz)->endOfWeek()->format('Y-m-d');
-                    $filtered->where(function ($q) use ($start, $end) {
-                        $q->whereBetween('transaction_date', [$start, $end])
-                        ->orWhereBetween('created_at', [$start, $end]);
-                    });
+                }
+                case 'this_week': {
+                    $start = Carbon::now($tz)->startOfWeek()->toDateString();
+                    $end   = Carbon::now($tz)->endOfWeek()->toDateString();
+                    $filtered->whereBetween('transaction_date', [$start, $end]);
                     break;
-                case 'this_month':
+                }
+                case 'this_month': {
                     $month = Carbon::now($tz)->month;
                     $year  = Carbon::now($tz)->year;
-                    $filtered->where(function ($q) use ($month, $year) {
-                        $q->where(function ($sub) use ($month, $year) {
-                            $sub->whereMonth('transaction_date', $month)
-                                ->whereYear('transaction_date', $year);
-                        })->orWhere(function ($sub) use ($month, $year) {
-                            $sub->whereMonth('created_at', $month)
-                                ->whereYear('created_at', $year);
-                        });
-                    });
+                    $filtered->whereMonth('transaction_date', $month)
+                            ->whereYear('transaction_date', $year);
                     break;
-                case 'this_year':
+                }
+                case 'this_year': {
                     $year = Carbon::now($tz)->year;
-                    $filtered->where(function ($q) use ($year) {
-                        $q->whereYear('transaction_date', $year)
-                        ->orWhereYear('created_at', $year);
-                    });
+                    $filtered->whereYear('transaction_date', $year);
                     break;
-                case 'last_30_days':
-                    $from = Carbon::now($tz)->subDays(30)->format('Y-m-d');
-                    $filtered->where(function ($q) use ($from) {
-                        $q->where('transaction_date', '>=', $from)
-                        ->orWhere('created_at', '>=', $from);
-                    });
+                }
+                case 'last_30_days': {
+                    $from = Carbon::now($tz)->subDays(30)->toDateString();
+                    $filtered->where('transaction_date', '>=', $from);
                     break;
+                }
             }
         }
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
-            $filtered->where(function ($q) use ($request) {
-                $q->whereBetween('transaction_date', [$request->start_date, $request->end_date])
-                ->orWhereBetween('created_at',        [$request->start_date, $request->end_date]);
-            });
+            $filtered->whereBetween('transaction_date', [$request->start_date, $request->end_date]);
         }
 
         if ($request->filled('search')) {
@@ -265,18 +228,25 @@ class ClientSatisfactionSurveyController extends Controller
         $filteredSurveys = $filtered->get();
 
         $stats = [
-            'total'                => $allSurveys->count(),
-            'satisfied'            => $allSurveys->where('satisfaction_rating', 'satisfied')->count(),
-            'dissatisfied'         => $allSurveys->where('satisfaction_rating', 'dissatisfied')->count(),
-            'filtered_total'       => $filteredSurveys->count(),
-            'filtered_satisfied'   => $filteredSurveys->where('satisfaction_rating', 'satisfied')->count(),
-            'filtered_dissatisfied'=> $filteredSurveys->where('satisfaction_rating', 'dissatisfied')->count(),
-            'today'                => $allSurveys->filter(fn ($s) => optional($s->created_at)->setTimezone(config('app.timezone'))?->isToday())->count(),
-            'this_month'           => $allSurveys->filter(fn ($s) => optional($s->created_at)->setTimezone(config('app.timezone'))?->isCurrentMonth())->count(),
+            'total'                  => $allSurveys->count(),
+            'satisfied'              => $allSurveys->where('satisfaction_rating', 'satisfied')->count(),
+            'dissatisfied'           => $allSurveys->where('satisfaction_rating', 'dissatisfied')->count(),
+            'filtered_total'         => $filteredSurveys->count(),
+            'filtered_satisfied'     => $filteredSurveys->where('satisfaction_rating', 'satisfied')->count(),
+            'filtered_dissatisfied'  => $filteredSurveys->where('satisfaction_rating', 'dissatisfied')->count(),
+
+            // Use transaction_date for these so they align with the page filters.
+            // If you prefer "submitted" counts, switch transaction_date -> created_at here only.
+            'today'                  => $allSurveys->filter(fn ($s) =>
+                optional($s->transaction_date)?->isToday()
+            )->count(),
+            'this_month'             => $allSurveys->filter(fn ($s) =>
+                optional($s->transaction_date)?->isCurrentMonth()
+            )->count(),
         ];
 
         /**
-         * -------- Reference data for filters ----------
+         * -------- Reference data ----------
          */
         $schools = School::orderBy('name')->get(['id', 'name']);
         $transactionTypes = [
@@ -296,7 +266,7 @@ class ClientSatisfactionSurveyController extends Controller
             'stats'            => $stats,
             'filters'          => [
                 'satisfaction_rating' => $request->satisfaction_rating,
-                'school_id'           => $request->school_id,   // note: id or "other"
+                'school_id'           => $request->school_id,
                 'transaction_type'    => $request->transaction_type,
                 'date_range'          => $request->date_range,
                 'start_date'          => $request->start_date,
@@ -306,7 +276,6 @@ class ClientSatisfactionSurveyController extends Controller
             ],
         ]);
     }
-
 
     /**
      * Store a newly created resource in storage.
