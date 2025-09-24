@@ -3,32 +3,22 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class School extends Model
 {
-    use HasUlids, SoftDeletes;
+    use SoftDeletes;
 
-    public $incrementing = false;   // string PK
-    protected $keyType = 'string';
+    // Default $incrementing = true and $keyType = 'int' are fine.
+    protected $fillable = ['name'];
 
-    protected $fillable = [
-        'name',
-    ];
-
-    // You can add relationships here as needed
-    // For example, if you have students or other entities related to schools:
-    /*
-    public function students(): HasMany
+    public function surveys()
     {
-        return $this->hasMany(Student::class);
+        return $this->hasMany(ClientSatisfactionSurvey::class);
     }
-    */
 
-    // Add accessor to get name (for compatibility with frontend)
-    public function getSchoolNameAttribute()
+    // Compatibility accessor if your frontend referenced `school_name`
+    public function getSchoolNameAttribute(): string
     {
         return $this->name;
     }
