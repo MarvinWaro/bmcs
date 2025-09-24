@@ -61,9 +61,7 @@ class SchoolController extends Controller
 
         School::create($validated);
 
-        return redirect()
-            ->back()
-            ->with('success', 'School created.');
+        return redirect()->back();
     }
 
     /**
@@ -96,21 +94,17 @@ class SchoolController extends Controller
 
         $school->update($validated);
 
-        return redirect()
-            ->route('schools.index')
-            ->with('success', 'School updated.');
+        return redirect()->back();
     }
 
     /**
      * Soft delete a school.
-     * FK on surveys is nullOnDelete(), so this won’t break existing survey rows.
+     * FK on surveys is nullOnDelete(), so this won't break existing survey rows.
      */
     public function destroy(School $school)
     {
         $school->delete();
 
-        return redirect()
-            ->route('schools.index')
-            ->with('success', 'School deleted.');
+        return redirect()->back();
     }
 }
