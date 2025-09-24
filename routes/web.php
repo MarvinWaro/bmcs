@@ -62,6 +62,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/schools/{school}', [SchoolController::class, 'destroy'])
         ->whereNumber('school')
         ->name('schools.destroy');
+
+    Route::get('/memorandum', function () {
+        return Inertia::render('display/coming-soon', [
+            'title' => 'List of Memorandum',
+            'description' => 'We\'re working hard to bring you this feature. Check back soon!'
+        ]);
+    })->name('memorandum.index');
 });
 
 require __DIR__.'/settings.php';
