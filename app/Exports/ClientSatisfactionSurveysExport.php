@@ -16,6 +16,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Carbon\Carbon;
 
 class ClientSatisfactionSurveysExport implements
     FromQuery,
@@ -53,66 +54,65 @@ class ClientSatisfactionSurveysExport implements
             $q->where('transaction_type', $this->filters['transaction_type']);
         }
 
-        // date_range (same logic you used in the controller)
+        // date_range - FIXED: Now matches controller logic exactly (transaction_date ONLY)
         if (!empty($this->filters['date_range']) && $this->filters['date_range'] !== 'all') {
-            $appTz = config('app.timezone');
-            $now   = now($appTz);
+            $tz = config('app.timezone');
 
             switch ($this->filters['date_range']) {
                 case 'today':
-                    $date = $now->toDateString();
-                    $q->where(function ($qq) use ($date) {
-                        $qq->whereDate('transaction_date', $date)
-                           ->orWhereDate('created_at', $date);
-                    });
+                    $today = Carbon::now($tz)->toDateString();
+                    $q->whereDate('transaction_date', $today);
                     break;
+
                 case 'this_week':
-                    $start = $now->copy()->startOfWeek()->toDateString();
-                    $end   = $now->copy()->endOfWeek()->toDateString();
-                    $q->where(function ($qq) use ($start, $end) {
-                        $qq->whereBetween('transaction_date', [$start, $end])
-                           ->orWhereBetween('created_at', [$start, $end]);
-                    });
+                    $start = Carbon::now($tz)->startOfWeek()->toDateString();
+                    $end   = Carbon::now($tz)->endOfWeek()->toDateString();
+                    $q->whereBetween('transaction_date', [$start, $end]);
                     break;
+
                 case 'this_month':
-                    $m = $now->month; $y = $now->year;
-                    $q->where(function ($qq) use ($m, $y) {
-                        $qq->where(function ($s) use ($m, $y) {
-                            $s->whereMonth('transaction_date', $m)->whereYear('transaction_date', $y);
-                        })->orWhere(function ($s) use ($m, $y) {
-                            $s->whereMonth('created_at', $m)->whereYear('created_at', $y);
-                        });
-                    });
+                    $month = Carbon::now($tz)->month;
+                    $year  = Carbon::now($tz)->year;
+                    $q->whereMonth('transaction_date', $month)
+                      ->whereYear('transaction_date', $year);
                     break;
+
                 case 'this_year':
-                    $y = $now->year;
-                    $q->where(function ($qq) use ($y) {
-                        $qq->whereYear('transaction_date', $y)->orWhereYear('created_at', $y);
-                    });
+                    $year = Carbon::now($tz)->year;
+                    $q->whereYear('transaction_date', $year);
                     break;
+
                 case 'last_30_days':
-                    $from = $now->copy()->subDays(30)->toDateString();
-                    $q->where(function ($qq) use ($from) {
-                        $qq->where('transaction_date', '>=', $from)
-                           ->orWhere('created_at', '>=', $from);
-                    });
+                    $from = Carbon::now($tz)->subDays(30)->toDateString();
+                    $q->where('transaction_date', '>=', $from);
                     break;
             }
         }
 
-        // search (name/email/reason/other_school and school name)
+        // custom date range (start_date/end_date) - transaction_date ONLY
+        if (!empty($this->filters['start_date']) && !empty($this->filters['end_date'])) {
+            $q->whereBetween('transaction_date', [$this->filters['start_date'], $this->filters['end_date']]);
+        }
+
+        // search - FIXED: Now matches controller logic exactly
         if (!empty($this->filters['search'])) {
             $term = $this->filters['search'];
             $q->where(function ($qq) use ($term) {
-                $qq->whereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$term}%"])
-                   ->orWhere('email', 'like', "%{$term}%")
-                   ->orWhere('reason', 'like', "%{$term}%")
-                   ->orWhere('other_school_specify', 'like', "%{$term}%")
-                   ->orWhereHas('school', fn ($sq) => $sq->where('name', 'like', "%{$term}%"));
+                $qq->where(function ($nq) use ($term) {
+                    $nq->where('first_name',  'like', "%{$term}%")
+                       ->orWhere('middle_name','like', "%{$term}%")
+                       ->orWhere('last_name',  'like', "%{$term}%");
+                })
+                ->orWhere('email', 'like', "%{$term}%")
+                ->orWhere('reason', 'like', "%{$term}%")
+                ->orWhere('other_school_specify', 'like', "%{$term}%")
+                ->orWhereHas('school', function ($sq) use ($term) {
+                    $sq->where('name', 'like', "%{$term}%");
+                });
             });
         }
 
-        return $q->orderByDesc('created_at');
+        return $q->orderBy('created_at', 'desc');
     }
 
     /** Map each row to our columns */
