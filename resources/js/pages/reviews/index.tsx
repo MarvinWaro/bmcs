@@ -1,3 +1,4 @@
+// resources/js/pages/reviews/index.tsx
 import ReviewRowTemplate from '@/components/reviews/ui/reviews-row';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,15 +38,8 @@ export type ReviewRow = {
     submittedAt: string;
 };
 
-type School = {
-    id: string;
-    name: string;
-};
-
-type TransactionType = {
-    value: string;
-    label: string;
-};
+type School = { id: number; name: string };
+type TransactionType = { value: string; label: string };
 
 type Stats = {
     total: number;
@@ -60,7 +54,7 @@ type Stats = {
 
 type Filters = {
     satisfaction_rating?: string;
-    school_hei?: string;
+    school_id?: string; // <-- use school_id (id or "other")
     transaction_type?: string;
     date_range?: string;
     start_date?: string;
@@ -79,9 +73,7 @@ type PaginationMeta = {
     to: number;
 };
 
-type PaginatedReviews = {
-    data: ReviewRow[];
-} & PaginationMeta;
+type PaginatedReviews = { data: ReviewRow[] } & PaginationMeta;
 
 type PageProps = {
     reviews: PaginatedReviews;
@@ -91,38 +83,27 @@ type PageProps = {
     filters: Filters;
 };
 
-// Pagination Component using shadcn
 function PaginationComponent({ meta, onPageChange }: { meta: PaginationMeta; onPageChange: (page: number) => void }) {
     const { current_page, last_page, from, to, total } = meta;
 
     const getVisiblePages = () => {
         const delta = 2;
-        const range = [];
-        const rangeWithDots = [];
+        const range: (number | string)[] = [];
+        const rangeWithDots: (number | string)[] = [];
 
         for (let i = Math.max(2, current_page - delta); i <= Math.min(last_page - 1, current_page + delta); i++) {
             range.push(i);
         }
-
-        if (current_page - delta > 2) {
-            rangeWithDots.push(1, '...');
-        } else {
-            rangeWithDots.push(1);
-        }
-
+        if (current_page - delta > 2) rangeWithDots.push(1, '...');
+        else rangeWithDots.push(1);
         rangeWithDots.push(...range);
-
-        if (current_page + delta < last_page - 1) {
-            rangeWithDots.push('...', last_page);
-        } else if (last_page > 1) {
-            rangeWithDots.push(last_page);
-        }
+        if (current_page + delta < last_page - 1) rangeWithDots.push('...', last_page);
+        else if (last_page > 1) rangeWithDots.push(last_page);
 
         return rangeWithDots;
     };
 
     if (last_page <= 1) return null;
-
     const visiblePages = getVisiblePages();
 
     return (
@@ -132,7 +113,6 @@ function PaginationComponent({ meta, onPageChange }: { meta: PaginationMeta; onP
                     Showing {from} to {to} of {total} results
                 </span>
             </div>
-
             <Pagination>
                 <PaginationContent>
                     <PaginationItem>
@@ -147,8 +127,8 @@ function PaginationComponent({ meta, onPageChange }: { meta: PaginationMeta; onP
                         />
                     </PaginationItem>
 
-                    {visiblePages.map((page, index) => (
-                        <PaginationItem key={index}>
+                    {visiblePages.map((page, i) => (
+                        <PaginationItem key={i}>
                             {page === '...' ? (
                                 <PaginationEllipsis />
                             ) : (
@@ -191,85 +171,48 @@ export default function ClientReviewsIndex() {
 
     const [localSearch, setLocalSearch] = useState(filters.search || '');
 
-    // Put this helper near the top of the file (optional)
     const isEmptyFilterValue = (v: unknown): v is '' | 'all' | undefined => v === '' || v === 'all' || v === undefined;
 
-    // Debounced search effect
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (localSearch !== filters.search) {
-                updateFilters({ search: localSearch });
-            }
+        const t = setTimeout(() => {
+            if (localSearch !== filters.search) updateFilters({ search: localSearch });
         }, 300);
-
-        return () => clearTimeout(timeoutId);
+        return () => clearTimeout(t);
     }, [localSearch]);
 
-    // type-safe setter for a single filter key
     function setFilter<K extends keyof Filters>(obj: Filters, key: K, value: Filters[K] | '' | 'all' | undefined) {
-        if (isEmptyFilterValue(value)) {
-            delete obj[key];
-        } else {
-            // value is not undefined here, safe to assign as the exact key type
-            obj[key] = value as Filters[K];
-        }
+        if (isEmptyFilterValue(value)) delete obj[key];
+        else obj[key] = value as Filters[K];
     }
 
     const updateFilters = (newFilters: Partial<Filters>) => {
-        // start from current filters
-        const currentFilters: Filters = { ...filters };
-
-        // apply incoming changes in a key-aware way
+        const current: Filters = { ...filters };
         (Object.keys(newFilters) as (keyof Filters)[]).forEach((key) => {
-            setFilter(currentFilters, key, newFilters[key]);
+            setFilter(current, key, newFilters[key]);
         });
-
-        // clean any leftover empty values (in case some existed already)
-        (Object.keys(currentFilters) as (keyof Filters)[]).forEach((key) => {
-            const v = currentFilters[key];
-            if (isEmptyFilterValue(v)) delete currentFilters[key];
+        (Object.keys(current) as (keyof Filters)[]).forEach((key) => {
+            const v = current[key];
+            if (isEmptyFilterValue(v)) delete current[key];
         });
+        if (!('per_page' in newFilters)) delete current.page;
 
-        // reset to page 1 unless per_page was the thing that changed
-        if (!('per_page' in newFilters)) {
-            delete currentFilters.page;
-        }
-
-        // send only defined primitives to the server
-        router.get('/client-reviews', currentFilters, {
-            preserveState: true,
-            preserveScroll: true,
-        });
+        router.get('/client-reviews', current, { preserveState: true, preserveScroll: true });
     };
 
     const handlePageChange = (page: number) => {
-        router.get(
-            '/client-reviews',
-            { ...filters, page },
-            {
-                preserveState: true,
-                preserveScroll: true,
-            },
-        );
+        router.get('/client-reviews', { ...filters, page }, { preserveState: true, preserveScroll: true });
     };
 
     const clearFilters = () => {
         setLocalSearch('');
-        router.get(
-            '/client-reviews',
-            { per_page: filters.per_page || 10 },
-            {
-                preserveState: true,
-                preserveScroll: true,
-            },
-        );
+        router.get('/client-reviews', { per_page: filters.per_page || 10 }, { preserveState: true, preserveScroll: true });
     };
 
     const hasActiveFilters =
-        Object.keys(filters).some((key) => {
-            const filterKey = key as keyof Filters;
-            const filterValue = filters[filterKey];
-            return filterValue !== undefined && filterValue !== '' && filterKey !== 'search' && filterKey !== 'per_page' && filterKey !== 'page';
+        Object.keys(filters).some((k) => {
+            const key = k as keyof Filters;
+            const v = filters[key];
+            return v !== undefined && v !== '' && key !== 'search' && key !== 'per_page' && key !== 'page';
         }) || Boolean(localSearch);
 
     const satisfactionOptions = [
@@ -299,10 +242,9 @@ export default function ClientReviewsIndex() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Client Reviews" />
-
             <div className="bg-background pb-6">
                 <div className="space-y-6">
-                    {/* Header Section */}
+                    {/* Header */}
                     <div className="space-y-2 px-6 pt-6">
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
@@ -312,7 +254,7 @@ export default function ClientReviewsIndex() {
                         </div>
                     </div>
 
-                    {/* Statistics Cards */}
+                    {/* Stats */}
                     <div className="grid grid-cols-1 gap-4 px-6 sm:grid-cols-2 lg:grid-cols-4">
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -364,21 +306,20 @@ export default function ClientReviewsIndex() {
                         </Card>
                     </div>
 
-                    {/* Filters Section */}
+                    {/* Filters */}
                     <div className="space-y-4 px-6">
                         <div className="flex items-center gap-2">
                             <Filter className="h-4 w-4 text-muted-foreground" />
                             <h6 className="text-sm font-medium">Filters</h6>
                             {hasActiveFilters && (
                                 <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 px-2 text-xs">
-                                    <X className="mr-1 h-3 w-3" />
-                                    Clear all
+                                    <X className="mr-1 h-3 w-3" /> Clear all
                                 </Button>
                             )}
                         </div>
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-                            {/* Satisfaction Rating Filter */}
+                            {/* Satisfaction */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">Satisfaction</label>
                                 <Select
@@ -389,35 +330,35 @@ export default function ClientReviewsIndex() {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {satisfactionOptions.map((option) => (
-                                            <SelectItem key={option.value} value={option.value}>
-                                                {option.label}
+                                        {satisfactionOptions.map((o) => (
+                                            <SelectItem key={o.value} value={o.value}>
+                                                {o.label}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            {/* School Filter */}
+                            {/* School */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">School</label>
-                                <Select value={filters.school_hei || 'all'} onValueChange={(value) => updateFilters({ school_hei: value })}>
+                                <Select value={filters.school_id || 'all'} onValueChange={(value) => updateFilters({ school_id: value })}>
                                     <SelectTrigger className="h-9">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Schools</SelectItem>
-                                        {schools.map((school) => (
-                                            <SelectItem key={school.id} value={school.name}>
-                                                {school.name}
+                                        {schools.map((s) => (
+                                            <SelectItem key={s.id} value={String(s.id)}>
+                                                {s.name}
                                             </SelectItem>
                                         ))}
-                                        <SelectItem value="other">Other</SelectItem>
+                                        <SelectItem value="other">Other (Not Listed)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            {/* Transaction Type Filter */}
+                            {/* Transaction Type */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">Transaction Type</label>
                                 <Select
@@ -429,16 +370,16 @@ export default function ClientReviewsIndex() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Types</SelectItem>
-                                        {transactionTypes.map((type) => (
-                                            <SelectItem key={type.value} value={type.value}>
-                                                {type.label}
+                                        {transactionTypes.map((t) => (
+                                            <SelectItem key={t.value} value={t.value}>
+                                                {t.label}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            {/* Date Range Filter */}
+                            {/* Date Range */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">Date Range</label>
                                 <Select value={filters.date_range || 'all'} onValueChange={(value) => updateFilters({ date_range: value })}>
@@ -446,26 +387,26 @@ export default function ClientReviewsIndex() {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {dateRangeOptions.map((option) => (
-                                            <SelectItem key={option.value} value={option.value}>
-                                                {option.label}
+                                        {dateRangeOptions.map((d) => (
+                                            <SelectItem key={d.value} value={d.value}>
+                                                {d.label}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            {/* Per Page Filter */}
+                            {/* Per Page */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground">Per Page</label>
-                                <Select value={String(filters.per_page || 10)} onValueChange={(value) => updateFilters({ per_page: Number(value) })}>
+                                <Select value={String(filters.per_page || 10)} onValueChange={(v) => updateFilters({ per_page: Number(v) })}>
                                     <SelectTrigger className="h-9">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {perPageOptions.map((option) => (
-                                            <SelectItem key={option.value} value={String(option.value)}>
-                                                {option.label}
+                                        {[5, 10, 15, 20, 25, 50].map((n) => (
+                                            <SelectItem key={n} value={String(n)}>
+                                                {n} per page
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -487,7 +428,7 @@ export default function ClientReviewsIndex() {
                             </div>
                         </div>
 
-                        {/* Active filters display */}
+                        {/* Active filters */}
                         {hasActiveFilters && (
                             <div className="flex flex-wrap gap-2">
                                 {filters.satisfaction_rating && (
@@ -503,19 +444,24 @@ export default function ClientReviewsIndex() {
                                         </Button>
                                     </Badge>
                                 )}
-                                {filters.school_hei && (
+
+                                {filters.school_id && (
                                     <Badge variant="secondary" className="text-xs">
-                                        School: {schools.find((s) => s.name === filters.school_hei)?.name || filters.school_hei}
+                                        School:{' '}
+                                        {filters.school_id === 'other'
+                                            ? 'Other (Not Listed)'
+                                            : (schools.find((s) => String(s.id) === String(filters.school_id))?.name ?? filters.school_id)}
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             className="ml-1 h-4 w-4 p-0 hover:bg-transparent"
-                                            onClick={() => updateFilters({ school_hei: 'all' })}
+                                            onClick={() => updateFilters({ school_id: 'all' })}
                                         >
                                             <X className="h-3 w-3" />
                                         </Button>
                                     </Badge>
                                 )}
+
                                 {filters.transaction_type && (
                                     <Badge variant="secondary" className="text-xs">
                                         Type: {transactionTypes.find((t) => t.value === filters.transaction_type)?.label}
@@ -529,6 +475,7 @@ export default function ClientReviewsIndex() {
                                         </Button>
                                     </Badge>
                                 )}
+
                                 {filters.date_range && (
                                     <Badge variant="secondary" className="text-xs">
                                         Date: {dateRangeOptions.find((d) => d.value === filters.date_range)?.label}
@@ -542,6 +489,7 @@ export default function ClientReviewsIndex() {
                                         </Button>
                                     </Badge>
                                 )}
+
                                 {localSearch && (
                                     <Badge variant="secondary" className="text-xs">
                                         Search: "{localSearch}"
@@ -559,7 +507,7 @@ export default function ClientReviewsIndex() {
                         )}
                     </div>
 
-                    {/* Results Summary */}
+                    {/* Results summary */}
                     <div className="px-6">
                         <div className="flex items-center gap-3">
                             <Badge variant="outline" className="px-3 py-1.5 text-sm font-medium">
@@ -574,7 +522,7 @@ export default function ClientReviewsIndex() {
                         </div>
                     </div>
 
-                    {/* Enhanced Table Card */}
+                    {/* Table */}
                     <Card className="rounded-none border-0 bg-card shadow-none">
                         <CardContent className="p-0">
                             <div className="overflow-hidden">
@@ -596,7 +544,7 @@ export default function ClientReviewsIndex() {
                                     </TableBody>
                                 </Table>
 
-                                {/* Enhanced Empty states */}
+                                {/* Empty states */}
                                 {reviews.data.length === 0 && (
                                     <div className="flex flex-col items-center justify-center px-6 py-20">
                                         {hasActiveFilters ? (
