@@ -16,9 +16,6 @@ import {
     Tooltip,
     Legend,
     ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell,
     BarChart,
     Bar,
     LineChart,
@@ -32,7 +29,6 @@ import {
     ThumbsUp,
     ThumbsDown,
     Calendar,
-    School,
     FileText,
     Filter,
     Eye
@@ -58,29 +54,22 @@ const GRAYSCALE_COLORS = {
 };
 
 const CHART_COLORS = {
-    satisfied: '#059669',       // emerald-600 (better contrast)
-    dissatisfied: '#DC2626',   // red-600 (better contrast)
-    primary: '#2563EB',        // blue-600
-    secondary: '#7C3AED',      // violet-600
-    accent: '#D97706',         // amber-600
-    success: '#059669',        // emerald-600
-    warning: '#D97706',        // amber-600
-    danger: '#DC2626',         // red-600
-    info: '#0891B2',           // cyan-600
-    purple: '#7C3AED',         // violet-600
-    pink: '#DB2777',           // pink-600
-    indigo: '#4F46E5',         // indigo-600
-    teal: '#0D9488',           // teal-600
-    orange: '#EA580C',         // orange-600
-    lime: '#65A30D',           // lime-600
+    satisfied: '#059669',
+    dissatisfied: '#DC2626',
+    primary: '#2563EB',
+    secondary: '#7C3AED',
+    accent: '#D97706',
+    success: '#059669',
+    warning: '#D97706',
+    danger: '#DC2626',
+    info: '#0891B2',
+    purple: '#7C3AED',
+    pink: '#DB2777',
+    indigo: '#4F46E5',
+    teal: '#0D9488',
+    orange: '#EA580C',
+    lime: '#65A30D',
 };
-
-// Enhanced pie chart colors with better contrast
-const PIE_COLORS = [
-    '#2563EB', '#7C3AED', '#059669', '#D97706', '#DC2626',
-    '#0891B2', '#DB2777', '#4F46E5', '#0D9488', '#EA580C',
-    '#65A30D', '#BE185D'
-];
 
 type Analytics = {
     metrics: {
@@ -168,10 +157,6 @@ export default function Dashboard() {
         });
     };
 
-    const top10Schools = analytics.school_distribution
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 10);
-
     const getFilteredDailyData = (timeRange: string) => {
         if (!analytics.daily_trend || analytics.daily_trend.length === 0) return [];
 
@@ -225,47 +210,6 @@ export default function Dashboard() {
                             </div>
                         </div>
                     )}
-                </div>
-            );
-        }
-        return null;
-    };
-
-    // Enhanced pie chart tooltip
-    const PieTooltip = ({ active, payload }: any) => {
-        if (active && payload && payload.length) {
-            const data = payload[0].payload;
-            const satisfactionRate = data.value > 0 ? ((data.satisfied / data.value) * 100).toFixed(1) : 0;
-
-            return (
-                <div className="rounded-lg border border-border bg-background p-4 shadow-lg min-w-[200px]">
-                    <p className="text-sm font-semibold mb-2">{data.name}</p>
-                    <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                            <span>Total Responses:</span>
-                            <span className="font-medium">{data.value}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-emerald-600"/>
-                                Satisfied:
-                            </span>
-                            <span className="font-medium">{data.satisfied}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-red-600"/>
-                                Dissatisfied:
-                            </span>
-                            <span className="font-medium">{data.dissatisfied}</span>
-                        </div>
-                        <div className="pt-2 border-t border-border">
-                            <div className="flex justify-between">
-                                <span>Satisfaction Rate:</span>
-                                <span className="font-medium">{satisfactionRate}%</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             );
         }
@@ -612,122 +556,72 @@ export default function Dashboard() {
                     </CardContent>
                 </Card>
 
-                {/* Charts Row: Enhanced Donut Chart and Transaction Distribution */}
-                <div className="grid gap-6 md:grid-cols-2">
-                    {/* Enhanced Top 10 Schools Donut Chart */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <School className="h-4 w-4" />
-                                Top 10 Schools Distribution
-                            </CardTitle>
-                            <CardDescription>
-                                Survey responses by top 10 schools/institutions
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="p-6">
-                                <ResponsiveContainer width="100%" height={380}>
-                                    <PieChart>
-                                        <Pie
-                                            data={top10Schools}
-                                            dataKey="value"
-                                            nameKey="name"
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={70}
-                                            outerRadius={140}
-                                            paddingAngle={3}
-                                            strokeWidth={2}
-                                            stroke="#ffffff"
-                                        >
-                                            {top10Schools.map((entry, index) => (
-                                                <Cell
-                                                    key={`cell-${index}`}
-                                                    fill={PIE_COLORS[index % PIE_COLORS.length]}
-                                                />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip content={<PieTooltip />} />
-                                        <Legend
-                                            verticalAlign="bottom"
-                                            height={36}
-                                            iconType="circle"
-                                            wrapperStyle={{ fontSize: '12px' }}
-                                        />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Enhanced Transaction Type Distribution Bar Chart */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <FileText className="h-4 w-4" />
-                                Transaction Types
-                            </CardTitle>
-                            <CardDescription>
-                                Survey responses by transaction type
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="p-6">
-                                <ResponsiveContainer width="100%" height={380}>
-                                    <BarChart
-                                        data={analytics.transaction_distribution}
-                                        margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
-                                    >
-                                        <CartesianGrid
-                                            strokeDasharray="3 3"
-                                            stroke={GRAYSCALE_COLORS.lighter}
-                                            horizontal={true}
-                                            vertical={false}
-                                        />
-                                        <XAxis
-                                            dataKey="name"
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tickMargin={10}
-                                            angle={-45}
-                                            textAnchor="end"
-                                            height={80}
-                                            fontSize={11}
-                                            tick={{ fill: GRAYSCALE_COLORS.secondary }}
-                                        />
-                                        <YAxis
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tickMargin={10}
-                                            tick={{ fontSize: 12, fill: GRAYSCALE_COLORS.secondary }}
-                                        />
-                                        <Tooltip content={<CustomTooltip />} />
-                                        <Bar
-                                            dataKey="satisfied"
-                                            stackId="a"
-                                            fill={CHART_COLORS.satisfied}
-                                            name="Satisfied"
-                                            radius={[0, 0, 0, 0]}
-                                        />
-                                        <Bar
-                                            dataKey="dissatisfied"
-                                            stackId="a"
-                                            fill={CHART_COLORS.dissatisfied}
-                                            name="Dissatisfied"
-                                            radius={[4, 4, 0, 0]}
-                                        />
-                                        <Legend
-                                            verticalAlign="top"
-                                            height={36}
-                                            iconType="circle"
-                                        />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                {/* Transaction Type Distribution - Full Width */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            Transaction Types
+                        </CardTitle>
+                        <CardDescription>
+                            Survey responses by transaction type
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="p-6">
+                            <ResponsiveContainer width="100%" height={400}>
+                                <BarChart
+                                    data={analytics.transaction_distribution}
+                                    margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+                                >
+                                    <CartesianGrid
+                                        strokeDasharray="3 3"
+                                        stroke={GRAYSCALE_COLORS.lighter}
+                                        horizontal={true}
+                                        vertical={false}
+                                    />
+                                    <XAxis
+                                        dataKey="name"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={10}
+                                        angle={-45}
+                                        textAnchor="end"
+                                        height={80}
+                                        fontSize={11}
+                                        tick={{ fill: GRAYSCALE_COLORS.secondary }}
+                                    />
+                                    <YAxis
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={10}
+                                        tick={{ fontSize: 12, fill: GRAYSCALE_COLORS.secondary }}
+                                    />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Bar
+                                        dataKey="satisfied"
+                                        stackId="a"
+                                        fill={CHART_COLORS.satisfied}
+                                        name="Satisfied"
+                                        radius={[0, 0, 0, 0]}
+                                    />
+                                    <Bar
+                                        dataKey="dissatisfied"
+                                        stackId="a"
+                                        fill={CHART_COLORS.dissatisfied}
+                                        name="Dissatisfied"
+                                        radius={[4, 4, 0, 0]}
+                                    />
+                                    <Legend
+                                        verticalAlign="top"
+                                        height={36}
+                                        iconType="circle"
+                                    />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Recent Surveys Table */}
                 <Card>
