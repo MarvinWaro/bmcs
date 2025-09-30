@@ -249,7 +249,7 @@ export default function DocumentsIndex({ title = 'Documents', documents = [] }: 
                                 {/* Subject and Date Fields */}
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div className="space-y-2">
-                                        <Label htmlFor="subject">Subject *</Label>
+                                        <Label htmlFor="subject">Subject <span className="text-red-500">*</span></Label>
                                         <Input
                                             id="subject"
                                             type="text"
@@ -264,7 +264,7 @@ export default function DocumentsIndex({ title = 'Documents', documents = [] }: 
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="date">Date *</Label>
+                                        <Label htmlFor="date">Date <span className="text-red-500">*</span></Label>
                                         <Input
                                             id="date"
                                             type="date"
@@ -595,7 +595,7 @@ export default function DocumentsIndex({ title = 'Documents', documents = [] }: 
                     </DialogHeader>
                     <form onSubmit={confirmEdit} className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="edit-subject" className="text-sm font-medium">Subject *</Label>
+                            <Label htmlFor="edit-subject" className="text-sm font-medium">Subject <span className="text-red-500">*</span></Label>
                             <Input
                                 id="edit-subject"
                                 type="text"
@@ -611,7 +611,7 @@ export default function DocumentsIndex({ title = 'Documents', documents = [] }: 
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="edit-date" className="text-sm font-medium">Date *</Label>
+                            <Label htmlFor="edit-date" className="text-sm font-medium">Date <span className="text-red-500">*</span></Label>
                             <Input
                                 id="edit-date"
                                 type="date"
