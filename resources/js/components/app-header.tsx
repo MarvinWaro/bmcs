@@ -35,8 +35,8 @@ const adminNavItems: NavItem[] = [
         icon: School,
     },
     {
-        title: 'List of Memorandum',
-        href: '/memorandum',
+        title: 'List of Documents',
+        href: '/documents',
         icon: FileText,
     },
 ];
