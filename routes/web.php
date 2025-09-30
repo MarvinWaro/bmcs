@@ -6,6 +6,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\ClientSatisfactionSurveyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SchoolController;
+use App\Http\Controllers\DocumentsController;
 use App\Models\School;
 
 /*
@@ -29,16 +30,13 @@ Route::post('/client-satisfaction-survey', [ClientSatisfactionSurveyController::
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // Dashboard
-    Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Client Reviews (list/manage)
     Route::get('/client-reviews', [ClientSatisfactionSurveyController::class, 'index'])
         ->name('client-reviews');
 
-    // Export Client Reviews (CSV/XLSX via Laravel Excel)
-    // Accepts the same optional query params as index:
-    // ?satisfaction_rating=&school_id=&transaction_type=&date_range=&start_date=&end_date=&search=
+    // Export Client Reviews
     Route::get('/client-reviews/export', [ClientSatisfactionSurveyController::class, 'export'])
         ->name('client-reviews.export');
 
@@ -54,21 +52,31 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // School management
     Route::get('/schools', [SchoolController::class, 'index'])->name('schools.index');
     Route::post('/schools', [SchoolController::class, 'store'])->name('schools.store');
-
     Route::patch('/schools/{school}', [SchoolController::class, 'update'])
-        ->whereNumber('school')
-        ->name('schools.update');
-
+        ->whereNumber('school')->name('schools.update');
     Route::delete('/schools/{school}', [SchoolController::class, 'destroy'])
-        ->whereNumber('school')
-        ->name('schools.destroy');
+        ->whereNumber('school')->name('schools.destroy');
 
-    Route::get('/memorandum', function () {
-        return Inertia::render('display/coming-soon', [
-            'title' => 'List of Memorandum',
-            'description' => 'We\'re working hard to bring you this feature. Check back soon!'
-        ]);
-    })->name('memorandum.index');
+    /* --------------------------
+    | Documents (UI only for now)
+    | ------------------------- */
+    Route::get('/documents', [DocumentsController::class, 'index'])
+        ->name('documents.index');
+
+    Route::post('/documents', [DocumentsController::class, 'store'])
+        ->name('documents.store');
+
+    Route::post('/documents/{document}', [DocumentsController::class, 'update'])
+        ->whereNumber('document')
+        ->name('documents.update');
+
+    Route::get('/documents/{document}/download', [DocumentsController::class, 'download'])
+        ->whereNumber('document')
+        ->name('documents.download');
+
+    Route::delete('/documents/{document}', [DocumentsController::class, 'destroy'])
+        ->whereNumber('document')
+        ->name('documents.destroy');
 });
 
 require __DIR__.'/settings.php';
